@@ -4,17 +4,26 @@
 
 #include "BrainCommon.as";
 #include "SkynetConfig.as";
+#include "Logging.as";
 
 
 void onInit(CBrain@ this)
 {
 	InitBrain(this);
+
+    //log("onInit", "Called");
 }
 
 void onTick(CBrain@ this)
 {
+    //log("onTick", "test");
     // SkynetBrain replaces KnightBrain for superbots
-    if (this.hasTag(SUPERBOT_TAG)) {
+    if (this.getBlob().getPlayer() !is null &&
+            this.getBlob().getPlayer().hasTag(SUPERBOT_TAG)) {
+        log("onInit", "I'm a superbot! Removing this script and adding SkynetBrain instead.");
+        this.getBlob().AddScript("SkynetBrain.as");
+        //this.getBlob().AddScript("TrackScore.as"); this is now included in knight.cfg
+        this.getBlob().Tag(SUPERBOT_TAG);
         this.getCurrentScript().runFlags |= Script::remove_after_this;
         return;
     }

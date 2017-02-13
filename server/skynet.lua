@@ -1,13 +1,19 @@
 --- Skynet server. Used for employing all parts of the NEAT algorithm apart from the evaluation function.
 -- Based on MarI/O code by SethBling
 -- Feel free to use this code, but please do not redistribute it.
+require "io"
+require "os"
+require "string"
+require "socket"
+require "util"
+require "rex"
 
 --- The number of inputs.
 -- Should match the constants in NeuralNetwork.as
-Inputs = 32
+NumInputs = 32
 --- The number of outputs.
 -- Should match the constants in NeuralNetwork.as
-Outputs = 6
+NumOutputs = 6
 
 --- The max size of the population.
 Population = 300
@@ -53,6 +59,20 @@ MaxNodes = 1000000
 
 --- The file to save/load state from.
 SaveLoadFile = "initrun.txt"
+--- The directory to save/load files in.
+SaveLoadDirectory = "data"
+
+--- The KAG server hostname
+KAGTcprHost = "localhost"
+--- The KAG server TCPR port
+KAGTcprPort = 50301
+--- The KAG server password
+KAGTcprPassword = "orange33"
+--- The KAG server rules property to write the serialized network to.
+-- Should match the value in SkynetConfig.as
+KAGIncomingNetworkRulesProp = "incoming network"
+KAGIncomingMetadataRulesProp = "incoming metadata"
+ModServerCommunicationCFG = "C:\Program Files (x86)\Steam\steamapps\common\King Arthur's Gold\Mods\Skynet\ServerCommunication.cfg"
 
 --- computes a sigmoid function on x.
 --@return a number
@@ -72,10 +92,9 @@ function newPool()
 	local pool = {}
 	pool.species = {}
 	pool.generation = 0
-	pool.innovation = Outputs
+	pool.innovation = NumOutputs
 	pool.currentSpecies = 1
 	pool.currentGenome = 1
-	pool.currentFrame = 0
 	pool.maxFitness = 0
 	
 	return pool
@@ -133,13 +152,13 @@ function copyGenome(genome)
 	return genome2
 end
 
---- Creates a new Genome, gives it a maxneuron equal to Inputs, and mutates it once.
+--- Creates a new Genome, gives it a maxneuron equal to NumInputs, and mutates it once.
 --@return Genome
 function basicGenome()
 	local genome = newGenome()
 	local innovation = 1
 
-	genome.maxneuron = Inputs
+	genome.maxneuron = NumInputs
 	mutate(genome)
 	
 	return genome
@@ -184,15 +203,16 @@ end
 --- Creates a network phenotype from a genome.
 -- Assigns the network property of the genome to the new network.
 function generateNetwork(genome)
+    print("Generating network from genome")
     -- TODO: Make this into the string repr for the network
 	local network = {}
 	network.neurons = {}
 	
-	for i=1,Inputs do
+	for i=1,NumInputs do
 		network.neurons[i] = newNeuron()
 	end
 	
-	for o=1,Outputs do
+	for o=1,NumOutputs do
 		network.neurons[MaxNodes+o] = newNeuron()
 	end
 	
@@ -212,20 +232,81 @@ function generateNetwork(genome)
 			end
 		end
 	end
-	
+
 	genome.network = network
+end
+
+---  Returns a serialized representation of the given Genome's network.
+-- TODO: this might need performance tweaks
+--@return serialized network string
+function serializeNetwork(genome)
+    print("Serializing network")
+    local network = genome.network
+    local result = "<network>"
+
+    print("genes: " .. table.tostring(genome.genes))
+    -- handles input and hidden neurons
+    for i=1, genome.maxneuron do
+        local neuron = network.neurons[i]
+        if neuron ~= nil then
+            result = result .. _serializeNeuron(neuron, genome.maxneuron) .. "|"
+        end
+    end
+
+    -- handles output neurons
+    for o=1, NumOutputs do
+        local neuron = network.neurons[MaxNodes+o]
+        if neuron ~= nil then
+            result = result .. _serializeNeuron(neuron, genome.maxneuron)
+
+            if o < NumOutputs then
+                result = result .. "|"
+            end
+        end
+    end
+
+    result = result .. "</network>"
+    return result
+end
+
+function _serializeNeuron(neuron, maxneuron)
+    local result = ""
+    --print("num incoming: " .. #neuron.incoming)
+    for j=1, #neuron.incoming do
+        local gene = neuron.incoming[j]
+        if gene.enabled then
+            result = result .. _serializeGene(gene, maxneuron)
+            if j < #neuron.incoming then
+                result = result .. "#"
+            end
+        end
+    end
+    return result
+end
+
+function _serializeGene(gene, maxneuron)
+    -- Output neurons have high numbers (greater than 1000000)
+    -- In the serialized network, reduce these values down so they arithmetically follow the network's
+    -- maxneuron.
+    local moddedInto = gene.into
+    local moddedOut  = gene.out
+    if moddedInto > MaxNodes then moddedInto = maxneuron + (gene.into - MaxNodes) end
+    if moddedOut  > MaxNodes then moddedOut  = maxneuron + (gene.out  - MaxNodes) end
+    moddedInto = moddedInto - 1 -- use 0 indexing rather than 1
+    moddedOut  = moddedOut - 1
+    return string.format("%d,%d,%f", moddedInto, moddedOut, gene.weight)
 end
 
 --- Runs a network on the given inputs.
 --@return table of outputs
 function evaluateNetwork(network, inputs)
 	table.insert(inputs, 1)
-	if #inputs ~= Inputs then
+	if #inputs ~= NumInputs then
 		console.writeline("Incorrect number of neural network inputs.")
 		return {}
 	end
 	
-	for i=1,Inputs do
+	for i=1,NumInputs do
 		network.neurons[i].value = inputs[i]
 	end
 	
@@ -243,7 +324,7 @@ function evaluateNetwork(network, inputs)
 	end
 	
 	local outputs = {}
-	for o=1,Outputs do
+	for o=1,NumOutputs do
 		local button = "P1 " .. ButtonNames[o]
 		if network.neurons[MaxNodes+o].value > 0 then
 			outputs[button] = true
@@ -304,18 +385,18 @@ end
 function randomNeuron(genes, nonInput)
 	local neurons = {}
 	if not nonInput then
-		for i=1,Inputs do
+		for i=1,NumInputs do
 			neurons[i] = true
 		end
 	end
-	for o=1,Outputs do
+	for o=1,NumOutputs do
 		neurons[MaxNodes+o] = true
 	end
 	for i=1,#genes do
-		if (not nonInput) or genes[i].into > Inputs then
+		if (not nonInput) or genes[i].into > NumInputs then
 			neurons[genes[i].into] = true
 		end
-		if (not nonInput) or genes[i].out > Inputs then
+		if (not nonInput) or genes[i].out > NumInputs then
 			neurons[genes[i].out] = true
 		end
 	end
@@ -375,19 +456,19 @@ end
 -- Has a chance to not create a new gene if it happens to choose 2 input nodes.
 -- Also will not create a new gene if by chance the new link is already in the genome.
 --@param genome Genome
---@param forceBias boolean, if true then the new gene's 'into' is set to the value of Inputs 
---@see Inputs
+--@param forceBias boolean, if true then the new gene's 'into' is set to the value of NumInputs 
+--@see NumInputs
 --@see containsLink
 function linkMutate(genome, forceBias)
 	local neuron1 = randomNeuron(genome.genes, false) -- can be an input node
 	local neuron2 = randomNeuron(genome.genes, true) -- cannot be an input node
 	 
 	local newLink = newGene()
-	if neuron1 <= Inputs and neuron2 <= Inputs then
+	if neuron1 <= NumInputs and neuron2 <= NumInputs then
 		--Both input nodes
 		return
 	end
-	if neuron2 <= Inputs then
+	if neuron2 <= NumInputs then
 		-- Swap output and input
 		local temp = neuron1
 		neuron1 = neuron2
@@ -397,7 +478,7 @@ function linkMutate(genome, forceBias)
 	newLink.into = neuron1
 	newLink.out = neuron2
 	if forceBias then
-		newLink.into = Inputs
+		newLink.into = NumInputs
 	end
 	
 	if containsLink(genome.genes, newLink) then
@@ -760,11 +841,15 @@ function newGeneration()
 	rankGlobally()
 	removeStaleSpecies()
 	rankGlobally()
+
+    -- Average fitness for all species
 	for s = 1,#pool.species do
 		local species = pool.species[s]
 		calculateAverageFitness(species)
 	end
 	removeWeakSpecies()
+
+    -- Breeding
 	local sum = totalAverageFitness()
 	local children = {}
 	for s = 1,#pool.species do
@@ -774,11 +859,15 @@ function newGeneration()
 			table.insert(children, breedChild(species))
 		end
 	end
+
 	cullSpecies(true) -- Cull all but the top member of each species
 	while #children + #pool.species < Population do
+        -- Ensure that the current population equals the max by cloning the champion genome from each species
 		local species = pool.species[math.random(1, #pool.species)]
 		table.insert(children, breedChild(species))
 	end
+
+    -- Add all the new children to a species
 	for c=1,#children do
 		local child = children[c]
 		addToSpecies(child)
@@ -796,6 +885,7 @@ end
 --@see basicGenome
 --@see initializeRun
 function initializePool()
+    print("initializePool called")
 	pool = newPool()
 
 	for i=1,Population do
@@ -806,45 +896,103 @@ function initializePool()
 	initializeRun()
 end
 
---- Useless.
-function clearJoypad()
-end
-
 --- Initializes the run, loading the save state from global Filename.
 function initializeRun()
-	savestate.load(Filename);
-	rightmost = 0
-	pool.currentFrame = 0
-	clearJoypad()
-	
+    print("initializeRun called")
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
 	generateNetwork(genome)
-	evaluateCurrent()
 end
 
 --- Evaluates the current genome (from pool.currentSpecies / pool.currentGenome).
 function evaluateCurrent()
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
+    print("Evaluating current network (not really)")
 
-	controller = evaluateNetwork(genome.network, inputs)
-	
-	if controller["P1 Left"] and controller["P1 Right"] then
-		controller["P1 Left"] = false
-		controller["P1 Right"] = false
-	end
-	if controller["P1 Up"] and controller["P1 Down"] then
-		controller["P1 Up"] = false
-		controller["P1 Down"] = false
-	end
-
-	joypad.set(controller)
+	--controller = evaluateNetwork(genome.network, inputs)
+    local inputs = {}
+    return
 end
 
---- Sets the global pool
-if pool == nil then
-	initializePool()
+--- Creates a one line string which summarizes the current state of the algorithm
+function getSummaryString()
+	local species = pool.species[pool.currentSpecies]
+	local genome = species.genomes[pool.currentGenome]
+
+    local measured, total = getCurrentGenerationProgress()
+    local numNeurons = #genome.network.neurons + NumOutputs
+    local numGenes = #genome.genes
+    local result = string.format("SUMMARY: Generation %d, Species %d, Genome %d (%d / %d), Neurons %d, Genes %d",
+        pool.generation, pool.currentSpecies, pool.currentGenome, measured, total, numNeurons, numGenes)
+    return result
+end
+
+--- Sends the current genome to KAG for evaluation
+function calculateCurrentFitness()
+    print("Calculating current fitness")
+	local species = pool.species[pool.currentSpecies]
+	local genome = species.genomes[pool.currentGenome]
+    genome.fitness = 1
+
+    serializedNetwork = serializeNetwork(genome)
+    print(serializedNetwork)
+
+    print("Connecting to KAG tcpr...")
+    local host = socket.dns.toip(KAGTcprHost)
+    local port = KAGTcprPort
+    local tcp = assert(socket.tcp())
+    tcp:connect(host, port)
+    tcp:send(KAGTcprPassword .. "\n")
+    print("Connection complete (hopefully)")
+
+    -- wait til authentication before we actually send the network
+    local authenticated = false
+    local fitnessString = ""
+    while true do
+        local s, status, partial = tcp:receive()
+        if s then
+            if not authenticated and string.find(s, "Ping") then
+                authenticated = true
+                tcp:send(string.format("getRules().set_string('%s', '%s')\n",
+                                KAGIncomingNetworkRulesProp, serializedNetwork))
+                tcp:send(string.format("getRules().set_string('%s', '%s')\n",
+                                KAGIncomingMetadataRulesProp, getSummaryString()))
+            end
+
+            if authenticated then
+                -- Look for network fitness response
+                if string.find(s, "Network fitness") then
+                    print("KAG responded with Network fitness string...")
+                    local function helper(match) fitnessString = match end 
+
+                    -- If the match is found then it is passed to helper
+                    string.gsub(s, "Network fitness: (%d+%.%d+)", helper)
+                    if fitnessString ~= "" then
+                        print("Parsed reply! " .. fitnessString)
+                        local fitness = tonumber(fitnessString)
+                        if not fitness then
+                            print("Fitness parse failed :(")
+                        else
+                            genome.fitness = fitness
+                            break
+                        end
+                    else
+                        print("Couldn't parse reply")
+                    end
+                end
+            end
+        end
+
+        print (s, status, partial)
+        if status == "closed" then
+            print("ERROR: Connection closed abruptly")
+            os.exit(1)
+        end
+    end
+    tcp:close()
+
+    return genome.fitness
 end
 
 --- Sets the new currentGenome and currentSpecies.
@@ -853,6 +1001,7 @@ end
 -- If all species have been trialled then newGeneration is called.
 --@see newGeneration
 function nextGenome()
+    print("nextGenome called")
 	pool.currentGenome = pool.currentGenome + 1
 	if pool.currentGenome > #pool.species[pool.currentSpecies].genomes then
 		pool.currentGenome = 1
@@ -879,7 +1028,7 @@ function displayGenome(genome)
         "Num genes: " .. #genome.genes .. "\n" ..
         "fitness: " .. genome.fitness .. "\n" ..
         "adjustedFitness: " .. genome.adjustedFitness .. "\n" ..
-        "number of neurons in network: " .. #genome.network.neurons .. "\n" ..
+        "number of neurons in network: " .. (#genome.network.neurons + NumOutputs) .. "\n" ..
         "maxneuron: " .. genome.maxneuron .. "\n" ..
         "globalRank: " .. genome.globalRank .. "\n"
         )
@@ -888,7 +1037,9 @@ end
 --- Writes the state of the current pool to a file.
 --@param filename The file to write to
 function writeFile(filename)
-    local file = io.open(filename, "w")
+    local path = SaveLoadDirectory .. "/" .. filename
+    print("writing file " .. path)
+    local file = io.open(path, "w")
 	file:write(pool.generation .. "\n")
 	file:write(pool.maxFitness .. "\n")
 	file:write(#pool.species .. "\n")
@@ -926,13 +1077,15 @@ end
 --- Calls writeFile with a default file path.
 --@see writeFile
 function savePool()
-	local filename = SaveLoadFile
-	writeFile(filename)
+    print("savePool called")
+	local path = SaveLoadDirectory .. "/" .. SaveLoadFile
+	writeFile(path)
 end
 
 --- Reads the state from the given file and sets the global pool accordingly.
 --@param filename The file to read from.
 function loadFile(filename)
+    print("loadFile called")
     local file = io.open(filename, "r")
 	pool = newPool()
 	pool.generation = file:read("*number")
@@ -976,19 +1129,20 @@ function loadFile(filename)
 		nextGenome()
 	end
 	initializeRun()
-	pool.currentFrame = pool.currentFrame + 1
 end
  
 --- Calls loadFile with a default file path argument.
 --@see loadFile
 function loadPool()
-	local filename = SaveLoadFile
-	loadFile(filename)
+    print("loadPool called")
+	local path = SaveLoadDirectory .. "/" .. SaveLoadFile
+	loadFile(path)
 end
 
 --- Sets pool.currentGenome to be the best current genome.
 -- Useful for demo purposes maybe.
 function playTop()
+    print("playTop called")
 	local maxfitness = 0
 	local maxs, maxg
 	for s,species in pairs(pool.species) do
@@ -1006,7 +1160,28 @@ function playTop()
 	pool.maxFitness = maxfitness
 	--forms.settext(maxFitnessLabel, "Max Fitness: " .. math.floor(pool.maxFitness))
 	initializeRun()
-	pool.currentFrame = pool.currentFrame + 1
+end
+
+--- Returns two numbers which represent the progress in evaluating the current generation.
+-- E.g. If 3/300 then return values are 3, 300
+function getCurrentGenerationProgress()
+	local measured = 0
+	local total = 0
+	for _,species in pairs(pool.species) do
+		for _,genome in pairs(species.genomes) do
+			total = total + 1
+			if genome.fitness ~= 0 then
+				measured = measured + 1
+			end
+		end
+	end
+
+    return measured, total
+end
+
+--- Sets the global pool
+if pool == nil then
+	initializePool()
 end
 
 writeFile("temp.pool")
@@ -1030,41 +1205,19 @@ while true do
 	local genome = species.genomes[pool.currentGenome]
 	
     displayGenome(genome)
-	
-	if pool.currentFrame%5 == 0 then
-		evaluateCurrent()
-	end
-
-    local fitness = 1 -- TODO: set this properly
-    if fitness == 0 then
-        fitness = -1
-    end
-    genome.fitness = fitness
+    local fitness = calculateCurrentFitness()
     
     if fitness > pool.maxFitness then
         pool.maxFitness = fitness
-        print("Max fitness improved to " + fitness)
+        print("Max fitness improved to " .. fitness)
         writeFile("backup." .. pool.generation .. ".txt")
     end
     
-    print("Gen " .. pool.generation .. " species " .. pool.currentSpecies .. " genome " .. pool.currentGenome .. " fitness: " .. fitness)
+    print(getSummaryString())
     pool.currentSpecies = 1
     pool.currentGenome = 1
     while fitnessAlreadyMeasured() do
         nextGenome()
     end
     initializeRun()
-
-	local measured = 0
-	local total = 0
-	for _,species in pairs(pool.species) do
-		for _,genome in pairs(species.genomes) do
-			total = total + 1
-			if genome.fitness ~= 0 then
-				measured = measured + 1
-			end
-		end
-	end
-
-	pool.currentFrame = pool.currentFrame + 1
 end

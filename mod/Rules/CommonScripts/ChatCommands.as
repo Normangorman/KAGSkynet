@@ -31,13 +31,6 @@ bool onServerProcessChat(CRules@ this, const string& in text_in, string& out tex
 		CPlayer@ bot = AddBot("Henry");
 		return true;
 	}
-	else if (text_in == "!superbot" && player.isMod())
-	{
-		CPlayer@ bot = AddBot(SUPERBOT_NAME);
-        bot.getBlob().AddScript("SkynetBrain.as");
-        bot.getBlob().Tag(SUPERBOT_TAG);
-		return true;
-	}
 	else if (text_in == "!debug" && player.isMod())
 	{
 		// print all blobs
