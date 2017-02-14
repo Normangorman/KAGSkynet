@@ -3,11 +3,19 @@
 #include "Knocked.as";
 #include "SkynetConfig.as";
 
-
 // Represents a single neuron in the network
 class Neuron {
-    Synapse[] incoming; // list of synapses which have this neuron as their 'out'
+    u32 id = 0;
     float value = 0.0;
+    Synapse@[] incoming; // list of synapses which have this neuron as their 'outNeuron'
+
+    Neuron(u32 _id) {
+        id = _id;
+    }
+
+    void debug() {
+        log("Neuron#debug", "Neuron(id=" + id + ", value=" + value + ", #incoming=" + incoming.length() + ")");
+    }
 }
 
 // Connection between neurons
@@ -15,70 +23,107 @@ class Synapse {
     u32 intoNeuron = 0; // the index in the network neurons array of the neuron supplying the input
     u32 outNeuron  = 0;  // the index in the network neurons array of the neuron receiving the output
     float weight   = 0.0;
+
+    Synapse(u32 _intoNeuron, u32 _outNeuron, float _weight) {
+        intoNeuron  = _intoNeuron;
+        outNeuron   = _outNeuron;
+        weight      = _weight;
+    }
+
+    void debug() {
+        log("Synapse#debug", "Synapse(intoNeuron=" + intoNeuron + ", outNeuron=" + outNeuron + ", weight=" + weight + ")");
+    }
 }
 
 // A collection of neurons
 class NeuralNetwork {
-    Neuron[] neurons; // stored in order [inputs, hidden, outputs]
-    bool loggedOnce = true;
+    int numInputs = 0; // numInputs and numOutputs should match constants NUM_INPUTS and NUM_OUTPUTS. validate() will check that
+    int numOutputs = 0;
+    int firstOutputID = 0;
+    dictionary idToNeuron; // maps neuron id's to Neuron objects
+    Neuron@[] orderedNeurons; // list of neurons ordered by ID. This is initialized by bake() after all synapses added. Done for efficiency.
+    bool loggedOnce = true; // if set to false then detailed log messages will be printed the first time evaluate() is called
 
     NetworkOutputs evaluate(NetworkInputs input) {
-        //log("evaluate", "Called. loggedOnce = " + loggedOnce);
         float[] inputVec = input.vectorize();
-        string inputVecDebug;
-        for (int i=0; i < inputVec.length(); i++) {
-            inputVecDebug += inputVec[i] + ", ";
-        }
         NetworkOutputs result;
         if (!loggedOnce) {
-            log("NeuralNetwork#evaluate", "Called. " +
-                    "neurons.length() = " + neurons.length() +
-                    ", inputVec.length() = " + inputVec.length() +
-                    ", inputVec = " + inputVecDebug
-                    );
+            input.debug();
+            log("NeuralNetwork#evaluate", "Called");
         }
 
-        if (neurons.length() < inputVec.length()) {
-            log("NeuralNetwork#evaluate", "ERROR Not enough neurons for inputs!");
+        if (inputVec.length() != numInputs) {
+            log("NeuralNetwork#evaluate", "ERROR inputVec size does not match numInputs");
             return result;
         }
 
         //log("NeuralNetwork#evaluate", "Copying inputs to input neurons.");
-        for (int i=0; i < inputVec.length(); i++) {
-            neurons[i].value = inputVec[i];
+        for (int i=0; i < orderedNeurons.length(); i++) {
+            Neuron@ n = orderedNeurons[i];
+            if (n.id <= numInputs) {
+                // It's an input neuron
+                // Remember first input neuron has id 1 but first input value will have index 0
+                n.value = inputVec[n.id-1];
+                if (!loggedOnce)
+                    log("NeuralNetwork#evaluate", "Assigning input " + inputVec[n.id-1] + " to neuron " + n.id);
+            }
+            else {
+                // We hit the end of the active input neurons
+                break;
+            }
         }
 
         //log("NeuralNetwork#evaluate", "Calculating neuron values.");
-        for (int i=0; i < neurons.length(); i++) {
+        for (int i=0; i < orderedNeurons.length(); i++) {
+            Neuron@ n = orderedNeurons[i];
+            //Only calculate for non-input neurons (obviously or would be wiping the input values)
+            if (n.id <= numInputs) continue;
+
+            /*
+            log("NeuralNetwork#evaluate", "Evaluating " + n.id);
+            n.debug();
+            */
+
             float sum = 0.0;
-            Neuron@ neuron = neurons[i];
-            for (int j=0; j < neuron.incoming.length(); j++) {
-                Synapse@ incoming = neuron.incoming[j];
-                Neuron@ other = neurons[incoming.intoNeuron];
-                if (!loggedOnce)
-                    log("NeuralNetwork#evaluate", incoming.intoNeuron + "("+other.value+")" +
-                        " ==" + incoming.weight + "==> " + i);
-                sum += incoming.weight * other.value;
+            for (int j=0; j < n.incoming.length(); j++) {
+                Synapse@ s = n.incoming[j];
+                Neuron@ other = getNeuron(s.intoNeuron);
+                /*
+                if (!loggedOnce) {
+                    s.debug();
+                    other.debug();
+                    log("NeuralNetwork#evaluate", s.intoNeuron + "("+other.value+")" +
+                        " ==" + s.weight + "==> " + n.id);
+                }
+                */
+                sum += s.weight * other.value;
             }
 
-
-            if (neuron.incoming.length() > 0) {
-                neuron.value = sigmoid(sum);
-                if (!loggedOnce)
-                    log("NeuralNetwork#evaluate", "Set value to " + neuron.value);
-            }
+            n.value = sigmoid(sum);
+            if (!loggedOnce)
+                log("NeuralNetwork#evaluate", "Set value to " + n.value);
         }
 
         //log("NeuralNetwork#evaluate", "Collecting outputs.");
-        // The outputs are all at the end of the array
         float[] outputVec;
-        string outputDebug = "";
-        for (int i=neurons.length() - NUM_OUTPUTS; i < neurons.length(); i++) {
-            outputDebug += neurons[i].value + ", ";
-            outputVec.push_back(neurons[i].value);
+        for (int i=0; i < numOutputs; i++) { outputVec.push_back(0); }
+        for (int i=orderedNeurons.length()-1; i >= 0; i--) {
+            Neuron@ n = orderedNeurons[i];
+            if (n.id >= firstOutputID) {
+                // n is an output neuron
+                outputVec[n.id - firstOutputID] = n.value;
+            }
+            else {
+                break;
+            }
         }
         result.loadFromVector(outputVec);
+
         if (!loggedOnce) {
+            string outputDebug = "";
+            for (int i=0; i < outputVec.length(); i++) {
+                outputDebug += outputVec[i] + ", ";
+            }
             log("NeuralNetwork#evaluate", "Output vector: " + outputDebug);
             result.debug();
         }
@@ -98,10 +143,8 @@ class NeuralNetwork {
         // loads the network from a string representation
         // returns true/false if parsing was successful
         // representation looks like:
-        // <network>1,2,0.56#3,4,0.8|3,8,0.95</network>
-        // | separates neurons
-        // # separates synapses
-        //log("loadFromString", "Loading from: " + str);
+        // <network>numInputs,numOutputs,firstOutputID@into,out,weight#into,out,weight#...</network>
+        log("loadFromString", "Loading from: " + str);
         
         // Check if valid
         if (!stringCheck(str, 0, "<network>")) {
@@ -113,27 +156,117 @@ class NeuralNetwork {
             return false;
         }
         else {
-            //log("loadFromString", "Yay str is valid");
+            log("loadFromString", "Yay str is valid");
         }
 
+        // Remove surrounding <network> and </network>
         string inner = str.substr("<network>".length(),
                 str.length() - "<network>".length() - "</network>".length());
-        /*
-        log("loadFromString", "inner = " + inner +
-                ", inner.length = " + inner.length()
+
+        // First part is metadata about the network
+        // Second part is list of synapses
+        string[]@ innerParts = inner.split("@");
+        if (innerParts.length() != 2) {
+            log("loadFromString", "ERROR Incorrect number of innerParts: " + innerParts.length());
+            return false;
+        }
+
+        // Parse metadata bit
+        string[]@ metaBits = innerParts[0].split(",");
+        if (metaBits.length() != 3) {
+            log("loadFromString", "ERROR Incorrect number of metaBits: " + metaBits.length());
+            return false;
+        }
+        numInputs = parseInt(metaBits[0]);
+        numOutputs = parseInt(metaBits[1]);
+        firstOutputID = parseInt(metaBits[2]);
+        
+        log("loadFromString", "numInputs = " + numInputs +
+                ", numOutputs = " + numOutputs +
+                ", firstOutputID = " + firstOutputID
                 );
-                */
 
-        string[]@ neuronStrings = inner.split("|");
-        //log("loadFromString", "Num neuronStrings = " + neuronStrings.length());
-
-        for (int i=0; i < neuronStrings.length(); i++) {
-            neurons.push_back(parseNeuron(neuronStrings[i]));
+        // Parse synapses bit
+        string[]@ synapseStrings = innerParts[1].split("#");
+        for (int i=0; i < synapseStrings.length(); i++) {
+            string synapseStr = synapseStrings[i];
+            string[]@ synapseBits = synapseStr.split(",");
+            if (synapseBits.length() != 3) {
+                log("loadFromString", "ERROR Incorrect number of synapseBits: " + synapseBits.length());
+                return false;
+            }
+            u32 intoNeuron = parseInt(synapseBits[0]);
+            u32 outNeuron = parseInt(synapseBits[1]);
+            float weight = parseFloat(synapseBits[2]);
+            addSynapse(intoNeuron, outNeuron, weight);
         }
 
         log("loadFromString", "Parsing finished!");
-        bool valid = validate();
-        return valid;
+        return bake() && validate();
+    }
+
+    void addSynapse(u32 intoNeuron, u32 outNeuron, float weight) {
+        log("addSynapse", "Adding " + intoNeuron + "==" + weight + "==> " + outNeuron);
+        Synapse s(intoNeuron, outNeuron, weight);
+        
+        // Add into/out if they don't exist yet
+        if (!hasNeuron(intoNeuron)) {
+            Neuron n(intoNeuron);
+            addNeuron(@n);
+        }
+
+        if (!hasNeuron(outNeuron)) {
+            Neuron n(outNeuron);
+            addNeuron(@n);
+        }
+        
+        Neuron@ outN = getNeuron(outNeuron);
+        outN.incoming.push_back(@s);
+    }
+
+    bool hasNeuron(u32 id) {
+        return idToNeuron.exists(""+id);
+    }
+
+    Neuron@ getNeuron(u32 id) {
+        Neuron@ n;
+        bool exists = idToNeuron.get(""+id, @n);
+        if (!exists) {
+            return null;
+        }
+        else {
+            return n;
+        }
+    }
+
+    void addNeuron(Neuron@ neuron) {
+        idToNeuron.set(""+neuron.id, @neuron);
+    }
+
+    bool bake() {
+        // Final step after loading is complete
+        // This sets 'orderedNeurons'
+        // Returns true/false whether successful
+        log("NeuralNetwork#bake", "Baking network");
+        // Sort all the IDs numerically (string ordering doesn't do that because e.g. "10001" < "2"
+        string[]@ everyID = idToNeuron.getKeys();
+        u32[] everyIntID;
+        for (int i=0; i < everyID.length(); i++) {
+            everyIntID.push_back(parseInt(everyID[i]));
+        }
+        everyIntID.sortAsc();
+
+        for (int i=0; i < everyIntID.length(); i++) {
+            Neuron@ neuron;
+            bool check = idToNeuron.get(""+everyIntID[i], @neuron);
+            if (!check) {
+                log("NeuralNetwork#bake", "ERROR couldn't find neuron with id: " + everyIntID[i]);
+                return false;
+            }
+            orderedNeurons.push_back(neuron);
+        }
+        //log("NeuralNetwork#bake", "Num active neurons: " + orderedNeurons.length());
+        return true;
     }
 
     bool stringCheck(string str, int i, string sub) {
@@ -155,63 +288,83 @@ class NeuralNetwork {
         return strSub == sub;
     }
 
-    Neuron parseNeuron(string neuronStr) {
-        Neuron neuron();
-
-        if (neuronStr != "") {
-            //log("parseNeuron", "Called for: " + neuronStr);
-            string[]@ genes = neuronStr.split("#");
-            //log("parseNeuron", "Num genes = " + genes.length());
-
-            for (int i=0; i < genes.length(); i++) {
-                string geneStr = genes[i];
-                string[]@ geneParts = geneStr.split(",");
-                //log("parseNeuron", "geneStr = " + geneStr);
-                if (geneParts.length() != 3) {
-                    log("parseNeuron", "ERROR: invalid number of geneParts " + geneParts.length());
-                }
-                else {
-                    Synapse synapse();
-                    synapse.intoNeuron = parseInt(geneParts[0]);
-                    synapse.outNeuron = parseInt(geneParts[1]);
-                    synapse.weight = parseFloat(geneParts[2]);
-                    neuron.incoming.push_back(synapse);
-                }
-            }
-        }
-
-        return neuron;
-    }
-
     bool validate() {
         // Error checks the structure of the network
         log("validate", "Validating network...");
-        int n = neurons.length();
-        if (n < NUM_INPUTS + NUM_OUTPUTS) {
-            log("validate", "ERROR network is too small.");
+        if (numInputs != NUM_INPUTS) {
+            log("validate", "ERROR network numInputs is not right: " + numInputs);
+            return false;
+        }
+        else if (numOutputs != NUM_OUTPUTS) {
+            log("validate", "ERROR network numOutputs is not right: " + numOutputs);
             return false;
         }
 
-        int synapseCount = 0;
-        for (int i=0; i < n; i++) {
-            Neuron neuron = neurons[i];
+        if (orderedNeurons.length() == 0) {
+            log("validate", "WARN no active neurons");
+        }
 
-            for (int j=0; j < neuron.incoming.length(); j++) {
-                Synapse s = neuron.incoming[j];
+        if (orderedNeurons.length() != idToNeuron.getSize()) {
+            log("validate", "ERROR orderedNeurons length doesn't match idToNeuron size. Probably error in bake.");
+            return false;
+        }
+
+        int activeInputs = 0;
+        int activeHidden = 0;
+        int activeOutputs = 0;
+        int synapseCount = 0;
+        for (int i=0; i < orderedNeurons.length(); i++) {
+            Neuron@ n = orderedNeurons[i];
+            if (n.id <= numInputs)
+                activeInputs++;
+            else if (n.id < firstOutputID)
+                activeHidden++;
+            else
+                activeOutputs++;
+
+            if (n is null) {
+                log("validate", "ERROR null neuron found");
+                return false;
+            }
+
+            /*
+            log("validate", "INFO neuron debug: id="+n.id +
+                   ", incoming=" + n.incoming.length());
+                   */
+            for (int j=0; j < n.incoming.length(); j++) {
                 synapseCount++;
-                if (s.intoNeuron < 0 || s.intoNeuron >= n) {
-                    log("validate", "ERROR invalid synapse found (intoNeuron)");
+                Synapse@ s = n.incoming[j];
+                /*
+                log("validate", "INFO synapse debug: into="+s.intoNeuron +
+                        ", out="+s.outNeuron +
+                        ", weight="+s.weight);
+                        */
+                if (s is null) {
+                    log("validate", "ERROR null synapse found");
                     return false;
                 }
-                else if (s.outNeuron < 0 || s.outNeuron >= n) {
-                    log("validate", "ERROR invalid synapse found (outNeuron)");
+                else if (!hasNeuron(s.intoNeuron)) {
+                    log("validate", "ERROR broken synapse, intoNeuron=" + s.intoNeuron);
+                    return false;
+                }
+                else if (!hasNeuron(s.outNeuron)) {
+                    log("validate", "ERROR broken synapse, outNeuron=" + s.outNeuron);
                     return false;
                 }
             }
         }
 
-        log("validate", "Network is valid! Neurons: " + n + 
-                ", Synapses: " + synapseCount);
+        if (synapseCount == 0) {
+            log("validate", "WARN no synapses");
+        }
+
+        log("validate", "Network is valid! " +
+                "Synapses: " + synapseCount +
+                ", Active neurons: " + orderedNeurons.length() +
+                " (inputs " + activeInputs + ")" + 
+                " (hidden " + activeHidden + ")" + 
+                " (outputs " + activeOutputs + ")"
+                );
 
         return true;
     }
@@ -396,6 +549,15 @@ class NetworkInputs {
         selfAimDir.Normalize();
         selfAimX = selfAimDir.x;
         selfAimY = selfAimDir.y;
+    }
+
+    void debug() {
+        float[] vec = vectorize();
+        string vecDebug;
+        for (int i=0; i < vec.length(); i++) {
+            vecDebug += vec[i] + ", ";
+        }
+        log("NetworkInputs#debug", "Input vec: " + vecDebug);
     }
 }
 

@@ -6,7 +6,6 @@ require "os"
 require "string"
 require "socket"
 require "util"
-require "rex"
 
 --- Whether to run tests on execution or not
 RunTests = true
@@ -254,60 +253,35 @@ end
 --@return serialized network string
 function serializeNetwork(genome)
     print("Serializing network")
-    local network = genome.network
-    local result = "<network>"
+    local parts = {} -- list of strings that will form the result. Concatenated at the end
+    local function add(part) table.insert(parts, tostring(part)) end
 
-    print("genes: " .. table.tostring(genome.genes))
-    -- handles input and hidden neurons
-    for i=1, genome.maxneuron do
-        local neuron = network.neurons[i]
-        if neuron ~= nil then
-            result = result .. _serializeNeuron(neuron, genome.maxneuron) .. "|"
-        end
-    end
+    add("<network>")
 
-    -- handles output neurons
-    for o=1, NumOutputs do
-        local neuron = network.neurons[MaxNodes+o]
-        if neuron ~= nil then
-            result = result .. _serializeNeuron(neuron, genome.maxneuron)
+    -- Write data about the numbers of neurons
+    -- Number of inputs, Number of outputs, First output ID
+    add(NumInputs)
+    add(",")
+    add(NumOutputs)
+    add(",")
+    add(MaxNodes+1)
+    add("@")
+    -- end metadata section
 
-            if o < NumOutputs then
-                result = result .. "|"
-            end
-        end
-    end
-
-    result = result .. "</network>"
-    return result
-end
-
-function _serializeNeuron(neuron, maxneuron)
-    local result = ""
-    --print("num incoming: " .. #neuron.incoming)
-    for j=1, #neuron.incoming do
-        local gene = neuron.incoming[j]
+    -- Now write every active connection
+    -- This implicitly defines the set of neurons used
+    for i=1, #genome.genes do
+        local gene = genome.genes[i]
         if gene.enabled then
-            result = result .. _serializeGene(gene, maxneuron)
-            if j < #neuron.incoming then
-                result = result .. "#"
-            end
+            local geneStr = string.format("%d,%d,%f", gene.into, gene.out, gene.weight)
+            add(geneStr)
+            if i < #genome.genes then add("#") end -- # separates genes
         end
     end
-    return result
-end
 
-function _serializeGene(gene, maxneuron)
-    -- Output neurons have high numbers (greater than 1000000)
-    -- In the serialized network, reduce these values down so they arithmetically follow the network's
-    -- maxneuron.
-    local moddedInto = gene.into
-    local moddedOut  = gene.out
-    if moddedInto > MaxNodes then moddedInto = maxneuron + (gene.into - MaxNodes) end
-    if moddedOut  > MaxNodes then moddedOut  = maxneuron + (gene.out  - MaxNodes) end
-    moddedInto = moddedInto - 1 -- use 0 indexing rather than 1
-    moddedOut  = moddedOut - 1
-    return string.format("%d,%d,%f", moddedInto, moddedOut, gene.weight)
+    add("</network>")
+    local result = table.concat(parts, "")
+    return result
 end
 
 --- Runs a network on the given inputs.
@@ -1195,21 +1169,40 @@ end
 -- TESTS
 --- Runs all the tests
 function runTests()
-    test_generateNetwork()
+    print("RUNNING TESTS")
+    test_serializeNetwork()
 end
 
---- Tests generateNetwork
+--- Tests serializeNetwork
 --@see generateNetwork
-function test_generateNetwork()
+function test_serializeNetwork()
     local genome = newGenome()
-    generateNetwork(genome)
-    assert(#genome.network.neurons == NumInputs + NumOutputs)
+    local str = serializeNetwork(genome)
+    print("Default genome serialized: " .. str)
+    assert(#str)
+
+    local gene = newGene()
+    gene.into = 5
+    gene.out = 6
+    table.insert(genome.genes, gene)
+    str = serializeNetwork(genome)
+    print("1-gene genome serialized: " .. str)
+    assert(#str)
+
+    gene = newGene()
+    gene.into = MaxNodes+1
+    gene.out = MaxNodes+1
+    table.insert(genome.genes, gene)
+    str = serializeNetwork(genome)
+    print("2-gene genome serialized: " .. str)
+    assert(#str)
 end
 
 
 -- MAIN
 if RunTests then
     runTests()
+    os.exit(0)
 end
 
 --- Sets the global pool
