@@ -20,21 +20,23 @@ class Synapse {
 // A collection of neurons
 class NeuralNetwork {
     Neuron[] neurons; // stored in order [inputs, hidden, outputs]
+    bool loggedOnce = true;
 
     NetworkOutputs evaluate(NetworkInputs input) {
+        //log("evaluate", "Called. loggedOnce = " + loggedOnce);
         float[] inputVec = input.vectorize();
         string inputVecDebug;
         for (int i=0; i < inputVec.length(); i++) {
             inputVecDebug += inputVec[i] + ", ";
         }
         NetworkOutputs result;
-        /*
-        log("NeuralNetwork#evaluate", "Called. " +
-                "neurons.length() = " + neurons.length() +
-                ", inputVec.length() = " + inputVec.length() +
-                ", inputVec = " + inputVecDebug
-                );
-                */
+        if (!loggedOnce) {
+            log("NeuralNetwork#evaluate", "Called. " +
+                    "neurons.length() = " + neurons.length() +
+                    ", inputVec.length() = " + inputVec.length() +
+                    ", inputVec = " + inputVecDebug
+                    );
+        }
 
         if (neurons.length() < inputVec.length()) {
             log("NeuralNetwork#evaluate", "ERROR Not enough neurons for inputs!");
@@ -48,22 +50,22 @@ class NeuralNetwork {
 
         //log("NeuralNetwork#evaluate", "Calculating neuron values.");
         for (int i=0; i < neurons.length(); i++) {
-            int sum = 0;
+            float sum = 0.0;
             Neuron@ neuron = neurons[i];
             for (int j=0; j < neuron.incoming.length(); j++) {
                 Synapse@ incoming = neuron.incoming[j];
                 Neuron@ other = neurons[incoming.intoNeuron];
-                /*
-                log("NeuralNetwork#evaluate", incoming.intoNeuron + "("+other.value+")" +
-                     " ==" + incoming.weight + "==> " + i);
-                     */
+                if (!loggedOnce)
+                    log("NeuralNetwork#evaluate", incoming.intoNeuron + "("+other.value+")" +
+                        " ==" + incoming.weight + "==> " + i);
                 sum += incoming.weight * other.value;
             }
 
 
             if (neuron.incoming.length() > 0) {
                 neuron.value = sigmoid(sum);
-                //log("NeuralNetwork#evaluate", "Set value to " + neuron.value);
+                if (!loggedOnce)
+                    log("NeuralNetwork#evaluate", "Set value to " + neuron.value);
             }
         }
 
@@ -75,13 +77,21 @@ class NeuralNetwork {
             outputDebug += neurons[i].value + ", ";
             outputVec.push_back(neurons[i].value);
         }
-        //log("NeuralNetwork#evaluate", "Output vector: " + outputDebug);
         result.loadFromVector(outputVec);
+        if (!loggedOnce) {
+            log("NeuralNetwork#evaluate", "Output vector: " + outputDebug);
+            result.debug();
+        }
+        loggedOnce = true;
         return result;
     }
 
     float sigmoid(float x) {
-        return 2.0/(1.0 + Maths::Pow(CONST_E, SIGMOID_X_SCALAR * x)) - 1;
+        float result = 2.0/(1.0 + Maths::Pow(CONST_E, SIGMOID_X_SCALAR * x)) - 1;
+        if (!loggedOnce) {
+            log("sigmoid", "Called for " + x + ", result = " + result);
+        }
+        return result;
     }
 
     bool loadFromString(string str) {
@@ -189,11 +199,11 @@ class NeuralNetwork {
             for (int j=0; j < neuron.incoming.length(); j++) {
                 Synapse s = neuron.incoming[j];
                 synapseCount++;
-                if (s.intoNeuron < 0 || s.intoNeuron > n) {
+                if (s.intoNeuron < 0 || s.intoNeuron >= n) {
                     log("validate", "ERROR invalid synapse found (intoNeuron)");
                     return false;
                 }
-                else if (s.outNeuron < 0 || s.outNeuron > n) {
+                else if (s.outNeuron < 0 || s.outNeuron >= n) {
                     log("validate", "ERROR invalid synapse found (outNeuron)");
                     return false;
                 }
@@ -411,12 +421,22 @@ class NetworkOutputs {
         if (vector[5] > 0) action2  = true;
     }
 
+    void debug() {
+        log("NetworkOutputs#debug", "Set keys: down = " + down +
+                ", up = " + up +
+                ", left = " + left +
+                ", right = " + right +
+                ", action1 = " + action1 +
+                ", action2 = " + action2);
+    }
+
     void setBlobKeys(CBlob@ knight) {
-        knight.setKeyPressed(key_down, down);
-        knight.setKeyPressed(key_up, up);
-        knight.setKeyPressed(key_left, left);
-        knight.setKeyPressed(key_right, right);
-        knight.setKeyPressed(key_action1, action1);
-        knight.setKeyPressed(key_action2, action2);
+        // Flip the state of the keys if needed
+        if (knight.isKeyPressed(key_down) != down) knight.setKeyPressed(key_down, down);
+        if (knight.isKeyPressed(key_up) != up) knight.setKeyPressed(key_up, up);
+        if (knight.isKeyPressed(key_left) != left) knight.setKeyPressed(key_left, left);
+        if (knight.isKeyPressed(key_right) != right) knight.setKeyPressed(key_right, right);
+        if (knight.isKeyPressed(key_action1) != action1) knight.setKeyPressed(key_action1, action1);
+        if (knight.isKeyPressed(key_action2) != action2) knight.setKeyPressed(key_action2, action2);
     }
 }

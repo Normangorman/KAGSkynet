@@ -8,6 +8,8 @@ require "socket"
 require "util"
 require "rex"
 
+--- Whether to run tests on execution or not
+RunTests = true
 --- The number of inputs.
 -- Should match the constants in NeuralNetwork.as
 NumInputs = 32
@@ -204,7 +206,6 @@ end
 -- Assigns the network property of the genome to the new network.
 function generateNetwork(genome)
     print("Generating network from genome")
-    -- TODO: Make this into the string repr for the network
 	local network = {}
 	network.neurons = {}
 	
@@ -234,6 +235,18 @@ function generateNetwork(genome)
 	end
 
 	genome.network = network
+end
+
+--- genome.maxneuron isn't always accurate. This function returns an accurate value for the max neuron.
+-- The value it returns is the max neuron number which ISN'T an output neuron (over 1,000,000).
+function getMaxUsedNeuron()
+    maxneuron = 0
+    for i, n in pairs(network.neurons) do
+        if i > maxneuron and i < MaxNodes then
+            maxneuron = i
+        end
+    end
+    return maxneuron
 end
 
 ---  Returns a serialized representation of the given Genome's network.
@@ -923,8 +936,8 @@ function getSummaryString()
     local measured, total = getCurrentGenerationProgress()
     local numNeurons = #genome.network.neurons + NumOutputs
     local numGenes = #genome.genes
-    local result = string.format("SUMMARY: Generation %d, Species %d, Genome %d (%d / %d), Neurons %d, Genes %d",
-        pool.generation, pool.currentSpecies, pool.currentGenome, measured, total, numNeurons, numGenes)
+    local result = string.format("SUMMARY: Max fitness %f, Generation %d, Species %d, Genome %d (%d / %d), Neurons %d, Genes %d",
+        pool.maxFitness, pool.generation, pool.currentSpecies, pool.currentGenome, measured, total, numNeurons, numGenes)
     return result
 end
 
@@ -1001,7 +1014,7 @@ end
 -- If all species have been trialled then newGeneration is called.
 --@see newGeneration
 function nextGenome()
-    print("nextGenome called")
+    --print("nextGenome called")
 	pool.currentGenome = pool.currentGenome + 1
 	if pool.currentGenome > #pool.species[pool.currentSpecies].genomes then
 		pool.currentGenome = 1
@@ -1179,6 +1192,26 @@ function getCurrentGenerationProgress()
     return measured, total
 end
 
+-- TESTS
+--- Runs all the tests
+function runTests()
+    test_generateNetwork()
+end
+
+--- Tests generateNetwork
+--@see generateNetwork
+function test_generateNetwork()
+    local genome = newGenome()
+    generateNetwork(genome)
+    assert(#genome.network.neurons == NumInputs + NumOutputs)
+end
+
+
+-- MAIN
+if RunTests then
+    runTests()
+end
+
 --- Sets the global pool
 if pool == nil then
 	initializePool()
@@ -1201,10 +1234,11 @@ hideBanner = forms.checkbox(form, "Hide Banner", 5, 190)
 ]]
 
 while true do
+    print("\nITERATING")
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
 	
-    displayGenome(genome)
+    --displayGenome(genome)
     local fitness = calculateCurrentFitness()
     
     if fitness > pool.maxFitness then

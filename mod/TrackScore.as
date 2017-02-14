@@ -41,6 +41,8 @@ void onTick(CBlob@ this) {
         vars.idleTicks = 0;
     }
 
+    // Average velocity computation
+    vars.velMeasurements++;
     float vel = this.getVelocity().Length();
 
     float s1 = vars.averageVel * vars.velMeasurements;
@@ -76,12 +78,38 @@ f32 onHit(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@ hitt
     return damage;
 }
 
+void onCommand(CBlob@ this, u8 cmd, CBitStream@ params) {
+    if (cmd == this.getCommandID("block attack cmd")) {
+        float damage = params.read_f32();
+        log("onCommand", "block attack cmd received: " + damage);
+        GetVars(this).damageBlocked += damage;
+    }
+}
+
+
 bool IsIdle(CBlob@ this) {
-    bool result = (!this.isKeyPressed(key_up) &&
-            !this.isKeyPressed(key_down) &&
-            !this.isKeyPressed(key_left) &&
-            !this.isKeyPressed(key_right));
-    return result;
+    bool active = (this.isKeyPressed(key_up) ||
+            this.isKeyPressed(key_down)      ||
+            this.isKeyPressed(key_left)      ||
+            this.isKeyPressed(key_right)     ||
+            this.isKeyPressed(key_action1)   ||
+            this.isKeyPressed(key_action2));
+
+    if (this.hasTag(SUPERBOT_TAG)) {
+        DebugKeys(this);
+        log("IsIdle", "active = " + active);
+    }
+    return !active;
+}
+
+void DebugKeys(CBlob@ this) {
+    log("DebugKeys", "Keys pressed: " + 
+            "down = " + this.isKeyPressed(key_down) +
+            ", up = " + this.isKeyPressed(key_up) +
+            ", left = " + this.isKeyPressed(key_left) +
+            ", right = " + this.isKeyPressed(key_right) +
+            ", action1 = " + this.isKeyPressed(key_action1) +
+            ", action2 = " + this.isKeyPressed(key_action2));
 }
 
 FitnessVars@ GetVars(CBlob@ this) {

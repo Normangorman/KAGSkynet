@@ -17,12 +17,11 @@ const float SIGMOID_X_SCALAR = -4.9;
 const int NUM_INPUTS = 32; // change this if inputs are changed
 const int NUM_OUTPUTS = 6;
 const int MAX_IDLE_TICKS = 100;
-const float MAX_IDLE_FITNESS = 0.01; // Assign this fitness if the bot was idling for too long
 
 // Coefficients for the fitness function
 const float CO_AV_VEL = 2.0;
 const float CO_DAMAGE = 100.0;
-const float CO_DAM_BLOCKED = 0.0;
+const float CO_DAM_BLOCKED = 2.0;
 const float CO_ACTIVE = 10.0;
 
 const int TCPR_PING_FREQUENCY = 150;

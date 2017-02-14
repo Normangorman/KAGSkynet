@@ -38,8 +38,11 @@ void onTick(CRules@ this) {
     }
 
     if (IsMeasuringFitness(this) && CheckIfBotIsIdle()) {
-        log("onTick", "Bot has been idle too long. Returning a default fitness value.");
-        SendFitnessValue(this, MAX_IDLE_FITNESS);
+        log("onTick", "Bot has been idle too long. Returning an overly idle fitness value.");
+        FitnessVars@ vars = GetFitnessVars();
+        if (vars !is null) {
+            SendFitnessValue(this, vars.computeOverlyIdleFitness());
+        }
     }
 
     // Check for incoming metadata
@@ -131,8 +134,12 @@ void onStateChange(CRules@ this, const u8 oldState) {
 
 void SendFitnessValue(CRules@ this, float fitness) {
     // Sends a fitness value over tcpr (hopefully the server is listening)
-    log("SendFitnessValue", "Sending: " + fitness);
-    tcpr("Network fitness: " + fitness);
+    // final argument to formatFloat is the min number of digits after the decimal point
+    // idk what the second argument is really, maybe the min number of digits before the point?
+    // wtf is the first argument though
+    string fitnessString = formatFloat(fitness, '0', 0, 6);
+    log("SendFitnessValue", "Sending: " + fitnessString);
+    tcpr("Network fitness: " + fitnessString);
     getNet().server_SendMsg("FITNESS: " + fitness);
     this.set_bool(FRESH_NETWORK_PROP, false);
 }

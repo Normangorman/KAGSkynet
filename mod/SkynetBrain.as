@@ -3,41 +3,54 @@
 #include "SkynetConfig.as";
 
 bool hasCurrentNetwork = false;
+bool loggedOnce = true;
 NeuralNetwork@ currentNetwork;
 
-void onInit(CBlob@ this) {
-    this.set_f32(SUPERBOT_SCORE_PROP, 0.0);
+void onInit(CBrain@ this) {
+    log("onInit", "Hook called");
+    hasCurrentNetwork = false;
 }
 
-void AddToScore(CBlob@ this, float value) {
-    float score = this.get_f32(SUPERBOT_SCORE_PROP);
-    this.set_f32(SUPERBOT_SCORE_PROP, score + value);
+void DebugKeys(CBlob@ blob) {
+    log("DebugKeys", "Keys pressed: " + 
+            "down = " + blob.isKeyPressed(key_down) +
+            ", up = " + blob.isKeyPressed(key_up) +
+            ", left = " + blob.isKeyPressed(key_left) +
+            ", right = " + blob.isKeyPressed(key_right) +
+            ", action1 = " + blob.isKeyPressed(key_action1) +
+            ", action2 = " + blob.isKeyPressed(key_action2));
 }
 
-void onTick(CBlob@ this) {
+void onTick(CBrain@ this) {
     if (!getNet().isServer()) return;
-    //log("onTick", "test");
 
-    if (this.hasTag("dead")) {
-        this.getCurrentScript().runFlags |= Script::remove_after_this;
+    //log("onTick", "test");
+    CBlob@ blob = this.getBlob();
+
+    if (blob.hasTag("dead")) {
+        blob.getCurrentScript().runFlags |= Script::remove_after_this;
         return;
     }
 
     if (!hasCurrentNetwork) {
         log("onTick", "WARN: No current network!");
         loadNeuralNetwork();
+        //loggedOnce = false;
         return;
     }
 
-    CBlob@ targetKnight = getTargetKnight(this);
+    CBlob@ targetKnight = getTargetKnight(blob);
     if (targetKnight !is null) {
         //log("onTick", "Target found");
         NetworkInputs inputs;
-        inputs.loadFromBlobs(this, targetKnight);
+        inputs.loadFromBlobs(blob, targetKnight);
 
         //log("onTick", "Running network");
         NetworkOutputs outputs = currentNetwork.evaluate(inputs);
-        outputs.setBlobKeys(this);
+        outputs.setBlobKeys(blob);
+        if (!loggedOnce)
+            DebugKeys(blob);
+        loggedOnce = true;
     }
 }
 
@@ -56,10 +69,10 @@ void loadNeuralNetwork() {
     }
 }
 
-CBlob@ getTargetKnight(CBlob@ this) {
+CBlob@ getTargetKnight(CBlob@ blob) {
     // Check if target is saved already
-    if (this.exists("target knight id")) {
-        u16 targetKnightID = this.get_netid("target knight id");
+    if (blob.exists("target knight id")) {
+        u16 targetKnightID = blob.get_netid("target knight id");
         CBlob@ targetKnight = getBlobByNetworkID(targetKnightID);
         
         if (targetKnight !is null && !targetKnight.hasTag("dead")) {
@@ -73,24 +86,24 @@ CBlob@ getTargetKnight(CBlob@ this) {
     getBlobsByName("knight", knights);
 
     for (int i=0; i < knights.length; i++) {
-        CBlob@ blob = knights[i];
-        if (!blob.hasTag("dead") &&
-                blob.getTeamNum() != this.getTeamNum()) {
+        CBlob@ other = knights[i];
+        if (!other.hasTag("dead") &&
+                other.getTeamNum() != blob.getTeamNum()) {
             // Find insert index (keep sorted by distance)
             int ix;
             for (ix=0; ix < targets.length; ix++) {
-                if (blob.getDistanceTo(this) <
-                        targets[ix].getDistanceTo(this))
+                if (other.getDistanceTo(blob) <
+                        targets[ix].getDistanceTo(blob))
                     break;
             }
 
-            targets.insert(ix, blob);
+            targets.insert(ix, other);
         }
     }
 
     if (targets.length > 0) {
         //log("getTargetKnight", "Found target knights: " + targets.length);
-        this.set_netid("target knight id", targets[0].getNetworkID());
+        blob.set_netid("target knight id", targets[0].getNetworkID());
         return targets[0];
     }
 

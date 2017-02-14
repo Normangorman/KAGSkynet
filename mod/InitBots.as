@@ -1,3 +1,6 @@
+// Runs only when the server first boots up
+// It adds a regular bot and a superbot.
+// Once they're in game then this script is removed.
 #include "Logging.as";
 #include "SkynetConfig.as";
 
@@ -25,7 +28,10 @@ void onTick(CRules@ this) {
         LoadNextMap();
     }
     else {
-        log("onTick", "Both bots are in game successfully. Now removing script.");
+        log("onTick", "Both bots are in game successfully.");
+        // brains are added by init brains
+        //superbot.getBlob().getBrain().AddScript("SkynetBrain.as");
+        //bot.getBlob().getBrain().AddScript("KnightBrain.as");
         //this.getCurrentScript().runFlags |= Script::remove_after_this;
         this.RemoveScript("InitBots.as");
     }
