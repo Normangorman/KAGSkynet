@@ -470,24 +470,24 @@ class NetworkInputs {
         }
 
         // Enemy
-        if (enemy.isKeyPressed(key_down)) {
+        if (enemy.wasKeyPressed(key_down)) {
             enemyDownUp = -1;
         }
-        else if (enemy.isKeyPressed(key_up)) {
+        else if (enemy.wasKeyPressed(key_up)) {
             enemyDownUp = 1;
         }
 
-        if (enemy.isKeyPressed(key_left)) {
+        if (enemy.wasKeyPressed(key_left)) {
             enemyLeftRight = -1;
         }
-        else if (enemy.isKeyPressed(key_right)) {
+        else if (enemy.wasKeyPressed(key_right)) {
             enemyLeftRight = 1;
         }
 
-        if (enemy.isKeyPressed(key_action1)) {
+        if (enemy.wasKeyPressed(key_action1)) {
             enemyAction = 1;
         }
-        else if (enemy.isKeyPressed(key_action2)) {
+        else if (enemy.wasKeyPressed(key_action2)) {
             enemyAction = 2;
         }
 
@@ -511,24 +511,24 @@ class NetworkInputs {
 
 
         // Self
-        if (self.isKeyPressed(key_down)) {
+        if (self.wasKeyPressed(key_down)) {
             selfDownUp = -1;
         }
-        else if (self.isKeyPressed(key_up)) {
+        else if (self.wasKeyPressed(key_up)) {
             selfDownUp = 1;
         }
 
-        if (self.isKeyPressed(key_left)) {
+        if (self.wasKeyPressed(key_left)) {
             selfLeftRight = -1;
         }
-        else if (self.isKeyPressed(key_right)) {
+        else if (self.wasKeyPressed(key_right)) {
             selfLeftRight = 1;
         }
 
-        if (self.isKeyPressed(key_action1)) {
+        if (self.wasKeyPressed(key_action1)) {
             selfAction = 1;
         }
-        else if (self.isKeyPressed(key_action2)) {
+        else if (self.wasKeyPressed(key_action2)) {
             selfAction = 2;
         }
 
@@ -568,6 +568,8 @@ class NetworkOutputs {
     bool right      = false;
     bool action1    = false;
     bool action2    = false;
+    float aimX      = 0.0;
+    float aimY      = 0.0;
 
     void loadFromVector(float[] vector) {
         if (vector.length() != NUM_OUTPUTS) {
@@ -581,6 +583,8 @@ class NetworkOutputs {
         if (vector[3] > 0) right    = true;
         if (vector[4] > 0) action1  = true;
         if (vector[5] > 0) action2  = true;
+        aimX = vector[6];
+        aimY = vector[7];
     }
 
     void debug() {
@@ -589,16 +593,20 @@ class NetworkOutputs {
                 ", left = " + left +
                 ", right = " + right +
                 ", action1 = " + action1 +
-                ", action2 = " + action2);
+                ", action2 = " + action2 +
+                ", aimX = " + aimX +
+                ", aimy = " + aimY
+                );
     }
 
     void setBlobKeys(CBlob@ knight) {
         // Flip the state of the keys if needed
-        if (knight.isKeyPressed(key_down) != down) knight.setKeyPressed(key_down, down);
-        if (knight.isKeyPressed(key_up) != up) knight.setKeyPressed(key_up, up);
-        if (knight.isKeyPressed(key_left) != left) knight.setKeyPressed(key_left, left);
-        if (knight.isKeyPressed(key_right) != right) knight.setKeyPressed(key_right, right);
-        if (knight.isKeyPressed(key_action1) != action1) knight.setKeyPressed(key_action1, action1);
-        if (knight.isKeyPressed(key_action2) != action2) knight.setKeyPressed(key_action2, action2);
+        knight.setKeyPressed(key_down, down);
+        knight.setKeyPressed(key_up, up);
+        knight.setKeyPressed(key_left, left);
+        knight.setKeyPressed(key_right, right);
+        knight.setKeyPressed(key_action1, action1);
+        knight.setKeyPressed(key_action2, action2);
+        knight.setAimPos(knight.getPosition() + Vec2f(aimX, aimY));
     }
 }

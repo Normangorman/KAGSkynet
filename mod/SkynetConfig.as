@@ -15,7 +15,7 @@ const string NORMALBOT_NAME = "Henry";
 const float CONST_E = 2.71828;
 const float SIGMOID_X_SCALAR = -4.9;
 const int NUM_INPUTS = 32; // change this if inputs are changed
-const int NUM_OUTPUTS = 6;
+const int NUM_OUTPUTS = 8;
 const int MAX_IDLE_TICKS = 100;
 
 // Coefficients for the fitness function

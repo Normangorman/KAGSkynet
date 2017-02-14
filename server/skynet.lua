@@ -14,7 +14,7 @@ RunTests = true
 NumInputs = 32
 --- The number of outputs.
 -- Should match the constants in NeuralNetwork.as
-NumOutputs = 6
+NumOutputs = 8
 
 --- The max size of the population.
 Population = 300
