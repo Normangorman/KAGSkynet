@@ -1,4 +1,4 @@
-const bool TEST_MODE = true; // if true then don't communicate with the server. Use TEST_NETWORK_STR as network.
+const bool TEST_MODE = false; // if true then don't communicate with the server. Use TEST_NETWORK_STR as network.
 
 const string FRESH_NETWORK_PROP = "fresh network";
 const string CURRENT_NETWORK_ID_PROP = "current network id";

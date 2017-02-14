@@ -8,7 +8,7 @@ require "socket"
 require "util"
 
 --- Whether to run tests on execution or not
-RunTests = true
+RunTests = false
 --- The number of inputs.
 -- Should match the constants in NeuralNetwork.as
 NumInputs = 32
@@ -270,12 +270,17 @@ function serializeNetwork(genome)
 
     -- Now write every active connection
     -- This implicitly defines the set of neurons used
+    local firstGene = true -- affects whether to put separator in
     for i=1, #genome.genes do
         local gene = genome.genes[i]
         if gene.enabled then
             local geneStr = string.format("%d,%d,%f", gene.into, gene.out, gene.weight)
+            if firstGene then
+                firstGene = false
+            else 
+                add("#")
+            end
             add(geneStr)
-            if i < #genome.genes then add("#") end -- # separates genes
         end
     end
 
@@ -824,6 +829,7 @@ end
 -- Increments pool.generation
 -- Writes a file with the name "backup.1.txt" (for generation 1 for example)
 function newGeneration()
+    print("STARTING NEW GENERATION " .. (pool.generation+1))
 	cullSpecies(false) -- Cull the bottom half of each species
 	rankGlobally()
 	removeStaleSpecies()

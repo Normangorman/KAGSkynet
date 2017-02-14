@@ -7,7 +7,7 @@ bool loggedOnce = true;
 NeuralNetwork@ currentNetwork;
 
 void onInit(CBrain@ this) {
-    log("onInit", "Hook called");
+    //log("onInit", "Hook called");
     hasCurrentNetwork = false;
 }
 

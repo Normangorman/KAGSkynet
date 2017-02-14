@@ -144,7 +144,7 @@ class NeuralNetwork {
         // returns true/false if parsing was successful
         // representation looks like:
         // <network>numInputs,numOutputs,firstOutputID@into,out,weight#into,out,weight#...</network>
-        log("loadFromString", "Loading from: " + str);
+        //log("loadFromString", "Loading from: " + str);
         
         // Check if valid
         if (!stringCheck(str, 0, "<network>")) {
@@ -156,7 +156,7 @@ class NeuralNetwork {
             return false;
         }
         else {
-            log("loadFromString", "Yay str is valid");
+            //log("loadFromString", "Yay str is valid");
         }
 
         // Remove surrounding <network> and </network>
@@ -181,10 +181,12 @@ class NeuralNetwork {
         numOutputs = parseInt(metaBits[1]);
         firstOutputID = parseInt(metaBits[2]);
         
+        /*
         log("loadFromString", "numInputs = " + numInputs +
                 ", numOutputs = " + numOutputs +
                 ", firstOutputID = " + firstOutputID
                 );
+                */
 
         // Parse synapses bit
         string[]@ synapseStrings = innerParts[1].split("#");
@@ -201,12 +203,12 @@ class NeuralNetwork {
             addSynapse(intoNeuron, outNeuron, weight);
         }
 
-        log("loadFromString", "Parsing finished!");
+        //log("loadFromString", "Parsing finished!");
         return bake() && validate();
     }
 
     void addSynapse(u32 intoNeuron, u32 outNeuron, float weight) {
-        log("addSynapse", "Adding " + intoNeuron + "==" + weight + "==> " + outNeuron);
+        //log("addSynapse", "Adding " + intoNeuron + "==" + weight + "==> " + outNeuron);
         Synapse s(intoNeuron, outNeuron, weight);
         
         // Add into/out if they don't exist yet
@@ -247,7 +249,7 @@ class NeuralNetwork {
         // Final step after loading is complete
         // This sets 'orderedNeurons'
         // Returns true/false whether successful
-        log("NeuralNetwork#bake", "Baking network");
+        //log("NeuralNetwork#bake", "Baking network");
         // Sort all the IDs numerically (string ordering doesn't do that because e.g. "10001" < "2"
         string[]@ everyID = idToNeuron.getKeys();
         u32[] everyIntID;

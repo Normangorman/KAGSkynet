@@ -12,7 +12,7 @@ void onSetPlayer(CBlob@ this, CPlayer@ player) {
     //log("onSetPlayer", "Called. Adding brains");
 
     if (player is null) {
-        log("onSetPlayer", "Player is null");
+        //log("onSetPlayer", "Player is null");
         return;
     }
     else {

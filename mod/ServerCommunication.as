@@ -118,14 +118,14 @@ void onStateChange(CRules@ this, const u8 oldState) {
     if (this.getCurrentState() == GAME_OVER &&
             oldState != GAME_OVER) {
         int winningTeam = this.getTeamWon();
-        log("onStateChange", "Detected game over! Winning team: " + winningTeam);
+        //log("onStateChange", "Detected game over! Winning team: " + winningTeam);
 
         // Try and find the superblob, its fitness vars and compute the fitness to send to the server.
         if (IsMeasuringFitness(this)) {
             FitnessVars@ vars = GetFitnessVars();
             if (vars !is null) {
                 float fitness = vars.computeFitness();
-                log("onStateChange", "Computed fitness = " + fitness);
+                //log("onStateChange", "Computed fitness = " + fitness);
                 SendFitnessValue(this, fitness);
             }
         }

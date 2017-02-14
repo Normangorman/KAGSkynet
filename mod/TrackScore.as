@@ -52,7 +52,7 @@ void onTick(CBlob@ this) {
 
 void onHitBlob(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@ hitBlob, u8 customData) {
     damage = damage * 2; // weird damage scaling stuff
-    log("onHitBlob", "Hook called. " + damage);
+    //log("onHitBlob", "Hook called. " + damage);
     if (hitBlob.getName() != "knight") {
         log("onHitBlob", "Hit a weird blob");
         return;
@@ -65,7 +65,7 @@ void onHitBlob(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@
 
 f32 onHit(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@ hitterBlob, u8 customData)
 {
-    log("onHit", "Hook called. " + damage);
+    //log("onHit", "Hook called. " + damage);
     if (hitterBlob.getName() != "knight") {
         log("onHit", "Hit by a weird blob");
         return damage;
@@ -81,7 +81,7 @@ f32 onHit(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@ hitt
 void onCommand(CBlob@ this, u8 cmd, CBitStream@ params) {
     if (cmd == this.getCommandID("block attack cmd")) {
         float damage = params.read_f32();
-        log("onCommand", "block attack cmd received: " + damage);
+        //log("onCommand", "block attack cmd received: " + damage);
         GetVars(this).damageBlocked += damage;
     }
 }
