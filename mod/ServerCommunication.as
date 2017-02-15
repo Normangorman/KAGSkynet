@@ -176,7 +176,7 @@ void LoadTestNetwork(CRules@ this) {
     log("LoadTestNetwork", "Loading test network");
     NeuralNetwork nnet();
     //bool valid = nnet.loadFromString(TEST_NETWORK_STR);
-    bool valid = nnet.loadFromString(TEST_NETWORK_STR);
+    bool valid = nnet.loadFromString(TEST_NETWORK_STR2);
     
     if (valid) {
         this.set(CURRENT_NETWORK_PROP, nnet);

@@ -30,3 +30,4 @@ const int TCPR_PING_FREQUENCY = 150;
 const string EXAMPLE_NETWORK_STR = "<network>32,8,1000001@5,6,0.000000#1000001,1000001,0.000000</network>";
 // this test network causes the bot to mirror the enemy keypresses
 const string TEST_NETWORK_STR = "<network>32,8,1000001@1,1000001,-1.0#1,1000002,1.0#2,1000003,-1.0#2,1000004,1.0#3,1000005,1.0</network>";
+const string TEST_NETWORK_STR2 = "<network>32,8,1000001@</network>";

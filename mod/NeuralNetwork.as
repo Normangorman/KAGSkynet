@@ -188,19 +188,22 @@ shared class NeuralNetwork {
                 );
                 */
 
-        // Parse synapses bit
-        string[]@ synapseStrings = innerParts[1].split("#");
-        for (int i=0; i < synapseStrings.length(); i++) {
-            string synapseStr = synapseStrings[i];
-            string[]@ synapseBits = synapseStr.split(",");
-            if (synapseBits.length() != 3) {
-                log("loadFromString", "ERROR Incorrect number of synapseBits: " + synapseBits.length());
-                return false;
+        if (innerParts[1].length() > 0) {
+            // Occasionally networks have no synapses, which crashed the server cause this check wasn't here
+            // Parse synapses bit
+            string[]@ synapseStrings = innerParts[1].split("#");
+            for (int i=0; i < synapseStrings.length(); i++) {
+                string synapseStr = synapseStrings[i];
+                string[]@ synapseBits = synapseStr.split(",");
+                if (synapseBits.length() != 3) {
+                    log("loadFromString", "ERROR Incorrect number of synapseBits: " + synapseBits.length());
+                    return false;
+                }
+                u32 intoNeuron = parseInt(synapseBits[0]);
+                u32 outNeuron = parseInt(synapseBits[1]);
+                float weight = parseFloat(synapseBits[2]);
+                addSynapse(intoNeuron, outNeuron, weight);
             }
-            u32 intoNeuron = parseInt(synapseBits[0]);
-            u32 outNeuron = parseInt(synapseBits[1]);
-            float weight = parseFloat(synapseBits[2]);
-            addSynapse(intoNeuron, outNeuron, weight);
         }
 
         //log("loadFromString", "Parsing finished!");
