@@ -23,7 +23,6 @@ void DebugKeys(CBlob@ blob) {
 
 void onTick(CBrain@ this) {
     if (!getNet().isServer()) return;
-
     //log("onTick", "test");
     CBlob@ blob = this.getBlob();
 
@@ -56,10 +55,11 @@ void onTick(CBrain@ this) {
 
 void loadNeuralNetwork() {
     // sets currentNetwork and hasCurrentNetwork
-    //log("loadNeuralNetwork", "Trying to load network");
+    log("loadNeuralNetwork", "Trying to load network");
     if (getRules().exists(CURRENT_NETWORK_PROP)) {
         log("loadNeuralNetwork", "Network found in Rules! Activating brain.");
         bool success = getRules().get(CURRENT_NETWORK_PROP, @currentNetwork);
+        //log("loadNeuralNetwork", "Got the current network from Rules OK");
         if (!success) {
             log("loadNeuralNetwork", "ERROR failed to load network from rules");
         }

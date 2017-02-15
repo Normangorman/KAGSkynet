@@ -4,7 +4,7 @@
 #include "SkynetConfig.as";
 
 // Represents a single neuron in the network
-class Neuron {
+shared class Neuron {
     u32 id = 0;
     float value = 0.0;
     Synapse@[] incoming; // list of synapses which have this neuron as their 'outNeuron'
@@ -19,7 +19,7 @@ class Neuron {
 }
 
 // Connection between neurons
-class Synapse {
+shared class Synapse {
     u32 intoNeuron = 0; // the index in the network neurons array of the neuron supplying the input
     u32 outNeuron  = 0;  // the index in the network neurons array of the neuron receiving the output
     float weight   = 0.0;
@@ -36,7 +36,7 @@ class Synapse {
 }
 
 // A collection of neurons
-class NeuralNetwork {
+shared class NeuralNetwork {
     int numInputs = 0; // numInputs and numOutputs should match constants NUM_INPUTS and NUM_OUTPUTS. validate() will check that
     int numOutputs = 0;
     int firstOutputID = 0;
@@ -372,7 +372,7 @@ class NeuralNetwork {
     }
 }
 
-class NetworkInputs {
+shared class NetworkInputs {
     int   enemyDownUp       = 0; // -1 down, 0 none, 1 up
     int   enemyLeftRight    = 0; // -1 left, 0 none, 1 right
     int   enemyAction       = 0; // 0 none, 1 action1, 2 action2
@@ -493,7 +493,7 @@ class NetworkInputs {
             enemyAction = 2;
         }
 
-        enemyKnocked = getKnocked(enemy);
+        enemyKnocked = customGetKnocked(enemy);
         enemyKnightState = enemyInfo.state;
         enemySwordTimer = enemyInfo.swordTimer;
         enemyShieldTimer = enemyInfo.shieldTimer;
@@ -534,7 +534,7 @@ class NetworkInputs {
             selfAction = 2;
         }
 
-        selfKnocked = getKnocked(self);
+        selfKnocked = customGetKnocked(self);
         selfKnightState = selfInfo.state;
         selfSwordTimer = selfInfo.swordTimer;
         selfShieldTimer = selfInfo.shieldTimer;
@@ -561,9 +561,16 @@ class NetworkInputs {
         }
         log("NetworkInputs#debug", "Input vec: " + vecDebug);
     }
+
+    u8 customGetKnocked(CBlob@ blob) {
+        // getKnocked is not shared code so we can't use it
+        if (!blob.exists("knocked"))
+            return 0;
+        return blob.get_u8("knocked");
+    }
 }
 
-class NetworkOutputs {
+shared class NetworkOutputs {
     bool down       = false;
     bool up         = false;
     bool left       = false;
