@@ -515,8 +515,8 @@ shared class NetworkInputs {
     //u32   enemyShieldDown   = 0;
     float enemyVelX         = 0.0;
     float enemyVelY         = 0.0;
-    float enemyPosX         = 0.0; // might want to remove this if we move away from FlatMap
-    float enemyPosY         = 0.0; // might want to remove this if we move away from FlatMap
+    float enemyPosX         = 0.0; // normalized to be between 0 and 1, using map width
+    float enemyPosY         = 0.0; // normalized to be between 0 and 1, using map height
     float enemyAimX         = 0.0; // normalized aim direction
     float enemyAimY         = 0.0;
 
@@ -623,6 +623,9 @@ shared class NetworkInputs {
             enemyAction = 2;
         }
 
+        float mapWidth = getMap().tilemapwidth * 8;
+        float mapHeight = getMap().tilemapheight * 8;
+
         enemyKnocked = customGetKnocked(enemy);
         enemyKnightState = enemyInfo.state;
         enemySwordTimer = enemyInfo.swordTimer;
@@ -632,8 +635,8 @@ shared class NetworkInputs {
         //enemyShieldDown = enemyInfo.shield_down;
         enemyVelX = enemy.getVelocity().x;
         enemyVelY = enemy.getVelocity().y;
-        enemyPosX = enemy.getPosition().x;
-        enemyPosY = enemy.getPosition().y;
+        enemyPosX = enemy.getPosition().x / mapWidth;
+        enemyPosY = enemy.getPosition().y / mapHeight;
 
         Vec2f enemyAimDir;
         enemy.getAimDirection(enemyAimDir);
@@ -673,8 +676,8 @@ shared class NetworkInputs {
         //selfShieldDown = selfInfo.shield_down;
         selfVelX = self.getVelocity().x;
         selfVelY = self.getVelocity().y;
-        selfPosX = self.getPosition().x;
-        selfPosY = self.getPosition().y;
+        selfPosX = self.getPosition().x / mapWidth;
+        selfPosY = self.getPosition().y / mapHeight;
 
         Vec2f selfAimDir;
         self.getAimDirection(selfAimDir);

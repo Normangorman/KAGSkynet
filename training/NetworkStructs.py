@@ -5,6 +5,8 @@ import copy
 NUM_KNIGHT_INPUTS = 15 # for each knight
 NUM_INPUTS = 30
 NUM_OUTPUTS = 8
+FLATMAP_WIDTH = 40*8
+FLATMAP_HEIGHT = 20*8
 
 class KnightInputs:
     def __init__(self):
@@ -85,6 +87,7 @@ class KnightInputs:
         velY = float(velocity.split(",")[1])
         posX = float(position.split(",")[0])
         posY = float(position.split(",")[1])
+        posX, posY = normalizePosition(posX, posY, FLATMAP_WIDTH, FLATMAP_HEIGHT)
         (aimX, aimY) = normalize(float(aimpos.split(",")[0]), float(aimpos.split(",")[1]))
 
         self.loadFromVector([downUp, leftRight, action, knocked, knightstate,
@@ -106,8 +109,9 @@ class KnightInputs:
         soup = BeautifulSoup(xml)
         self.loadFromSoup(soup)
 
-        assert(self.posX == 297.568)
-        assert(self.posY == 128.325)
+        normPosX, normPosY = normalizePosition(297.568, 128.325, FLATMAP_WIDTH, FLATMAP_HEIGHT)
+        assert(self.posX == normPosX)
+        assert(self.posY == normPosY)
         assert(self.velX == 3.15626)
         assert(self.velY == -1.03114)
         normAimX, normAimY = normalize(315.171, 170.823)
@@ -205,6 +209,11 @@ def normalize(x, y):
         return 0,0
     else:
         return x/length, y/length
+
+
+def normalizePosition(x, y, mapWidth, mapHeight):
+    # Normalizes a kag position vector
+    return x/float(mapWidth), y/float(mapHeight)
 
 
 def isKeyPressed(keys, key):
