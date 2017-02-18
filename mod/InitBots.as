@@ -9,10 +9,13 @@ void onInit(CRules@ this) {
     if (getNet().isServer()) {
         CPlayer@ superbot = AddBot(SUPERBOT_NAME);
         superbot.Tag(SUPERBOT_TAG);
-        CPlayer@ bot = AddBot(NORMALBOT_NAME);
+        superbot.server_setTeamNum(0);
+        LoadNextMap();
+        //CPlayer@ bot = AddBot(NORMALBOT_NAME);
     }
 }
 
+/*
 void onTick(CRules@ this) {
     CPlayer@ superbot = getPlayerByUsername(SUPERBOT_NAME);
     CPlayer@ bot = getPlayerByUsername(NORMALBOT_NAME);
@@ -36,3 +39,4 @@ void onTick(CRules@ this) {
         this.RemoveScript("InitBots.as");
     }
 }
+*/

@@ -28,7 +28,13 @@ bool onServerProcessChat(CRules@ this, const string& in text_in, string& out tex
 	}
 	else if (text_in == "!bot" && player.isMod()) // TODO: whoaaa check seclevs
 	{
-		CPlayer@ bot = AddBot("Henry");
+		CPlayer@ bot = AddBot(NORMALBOT_NAME);
+		return true;
+	}
+	else if (text_in == "!superbot" && player.isMod()) // TODO: whoaaa check seclevs
+	{
+		CPlayer@ bot = AddBot(SUPERBOT_NAME);
+		bot.Tag(SUPERBOT_TAG);
 		return true;
 	}
 	else if (text_in == "!debug" && player.isMod())

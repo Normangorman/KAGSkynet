@@ -30,7 +30,7 @@ void onTick(CRules@ this) {
     if (getGameTime() % 90 == 0)
         nnet.loadFromString(EXAMPLE_NETWORK_STR);
         */
-    
+
     if (TEST_MODE) return;
 
     if (getGameTime() % TCPR_PING_FREQUENCY == 0) {
@@ -62,7 +62,7 @@ void onTick(CRules@ this) {
 
         NeuralNetwork nnet();
         bool valid = nnet.loadFromString(incoming_network);
-        
+
         if (valid) {
             this.set(CURRENT_NETWORK_PROP, nnet);
             this.set_bool(FRESH_NETWORK_PROP, true);
@@ -73,7 +73,7 @@ void onTick(CRules@ this) {
         }
 
         //u32 current_network_id = this.get_u32(CURRENT_NETWORK_ID_PROP);
-        //this.set_u32(CURRENT_NETWORK_ID_PROP, current_network_id + 1); 
+        //this.set_u32(CURRENT_NETWORK_ID_PROP, current_network_id + 1);
     }
 }
 
@@ -176,8 +176,8 @@ void LoadTestNetwork(CRules@ this) {
     log("LoadTestNetwork", "Loading test network");
     NeuralNetwork nnet();
     //bool valid = nnet.loadFromString(TEST_NETWORK_STR);
-    bool valid = nnet.loadFromString(TEST_NETWORK_STR2);
-    
+    bool valid = nnet.loadFromString(ARTHUR_EXP1);
+
     if (valid) {
         this.set(CURRENT_NETWORK_PROP, nnet);
         this.set_bool(FRESH_NETWORK_PROP, true);

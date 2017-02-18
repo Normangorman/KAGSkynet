@@ -80,9 +80,11 @@ f32 onHit(CBlob@ this, Vec2f worldPoint, Vec2f velocity, f32 damage, CBlob@ hitt
 
 void onCommand(CBlob@ this, u8 cmd, CBitStream@ params) {
     if (cmd == this.getCommandID("block attack cmd")) {
-        float damage = params.read_f32();
-        //log("onCommand", "block attack cmd received: " + damage);
-        GetVars(this).damageBlocked += damage;
+        if (params !is null && GetVars(this) !is null) {
+            float damage = params.read_f32();
+            //log("onCommand", "block attack cmd received: " + damage);
+            GetVars(this).damageBlocked += damage;
+        }
     }
 }
 

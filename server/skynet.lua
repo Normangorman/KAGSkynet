@@ -97,7 +97,7 @@ function newPool()
 	pool.currentSpecies = 1
 	pool.currentGenome = 1
 	pool.maxFitness = 0
-	
+
 	return pool
 end
 
@@ -109,7 +109,7 @@ function newSpecies()
 	species.staleness = 0
 	species.genomes = {}
 	species.averageFitness = 0
-	
+
 	return species
 end
 
@@ -131,7 +131,7 @@ function newGenome()
 	genome.mutationRates["enable"] = EnableMutationChance
 	genome.mutationRates["disable"] = DisableMutationChance
 	genome.mutationRates["step"] = StepSize
-	
+
 	return genome
 end
 
@@ -149,7 +149,7 @@ function copyGenome(genome)
 	genome2.mutationRates["node"] = genome.mutationRates["node"]
 	genome2.mutationRates["enable"] = genome.mutationRates["enable"]
 	genome2.mutationRates["disable"] = genome.mutationRates["disable"]
-	
+
 	return genome2
 end
 
@@ -161,7 +161,7 @@ function basicGenome()
 
 	genome.maxneuron = NumInputs
 	mutate(genome)
-	
+
 	return genome
 end
 
@@ -174,7 +174,7 @@ function newGene()
 	gene.weight = 0.0
 	gene.enabled = true
 	gene.innovation = 0
-	
+
 	return gene
 end
 
@@ -187,7 +187,7 @@ function copyGene(gene)
 	gene2.weight = gene.weight
 	gene2.enabled = gene.enabled
 	gene2.innovation = gene.innovation
-	
+
 	return gene2
 end
 
@@ -197,7 +197,7 @@ function newNeuron()
 	local neuron = {}
 	neuron.incoming = {}
 	neuron.value = 0.0
-	
+
 	return neuron
 end
 
@@ -207,15 +207,15 @@ function generateNetwork(genome)
     print("Generating network from genome")
 	local network = {}
 	network.neurons = {}
-	
+
 	for i=1,NumInputs do
 		network.neurons[i] = newNeuron()
 	end
-	
+
 	for o=1,NumOutputs do
 		network.neurons[MaxNodes+o] = newNeuron()
 	end
-	
+
 	table.sort(genome.genes, function (a,b)
 		return (a.out < b.out)
 	end)
@@ -277,7 +277,7 @@ function serializeNetwork(genome)
             local geneStr = string.format("%d,%d,%f", gene.into, gene.out, gene.weight)
             if firstGene then
                 firstGene = false
-            else 
+            else
                 add("#")
             end
             add(geneStr)
@@ -297,11 +297,11 @@ function evaluateNetwork(network, inputs)
 		console.writeline("Incorrect number of neural network inputs.")
 		return {}
 	end
-	
+
 	for i=1,NumInputs do
 		network.neurons[i].value = inputs[i]
 	end
-	
+
 	for _,neuron in pairs(network.neurons) do
 		local sum = 0
 		for j = 1,#neuron.incoming do
@@ -309,12 +309,12 @@ function evaluateNetwork(network, inputs)
 			local other = network.neurons[incoming.into]
 			sum = sum + incoming.weight * other.value
 		end
-		
+
 		if #neuron.incoming > 0 then
 			neuron.value = sigmoid(sum)
 		end
 	end
-	
+
 	local outputs = {}
 	for o=1,NumOutputs do
 		local button = "P1 " .. ButtonNames[o]
@@ -324,7 +324,7 @@ function evaluateNetwork(network, inputs)
 			outputs[button] = false
 		end
 	end
-	
+
 	return outputs
 end
 
@@ -345,13 +345,13 @@ function crossover(g1, g2)
 	end
 
 	local child = newGenome()
-	
+
 	local innovations2 = {}
 	for i=1,#g2.genes do
 		local gene = g2.genes[i]
 		innovations2[gene.innovation] = gene
 	end
-	
+
 	for i=1,#g1.genes do
 		local gene1 = g1.genes[i]
 		local gene2 = innovations2[gene1.innovation]
@@ -361,13 +361,13 @@ function crossover(g1, g2)
 			table.insert(child.genes, copyGene(gene1))
 		end
 	end
-	
+
 	child.maxneuron = math.max(g1.maxneuron,g2.maxneuron)
-	
+
 	for mutation,rate in pairs(g1.mutationRates) do
 		child.mutationRates[mutation] = rate
 	end
-	
+
 	return child
 end
 
@@ -399,7 +399,7 @@ function randomNeuron(genes, nonInput)
 	end
     -- n is a random index for a neuron in the list
 	local n = math.random(1, count)
-	
+
     -- k is a neuron number
 	for k,v in pairs(neurons) do
 		n = n-1
@@ -407,7 +407,7 @@ function randomNeuron(genes, nonInput)
 			return k
 		end
 	end
-	
+
 	return 0
 end
 
@@ -433,7 +433,7 @@ end
 --@see PerturbChance
 function pointMutate(genome)
 	local step = genome.mutationRates["step"]
-	
+
 	for i=1,#genome.genes do
 		local gene = genome.genes[i]
 		if math.random() < PerturbChance then
@@ -448,13 +448,13 @@ end
 -- Has a chance to not create a new gene if it happens to choose 2 input nodes.
 -- Also will not create a new gene if by chance the new link is already in the genome.
 --@param genome Genome
---@param forceBias boolean, if true then the new gene's 'into' is set to the value of NumInputs 
+--@param forceBias boolean, if true then the new gene's 'into' is set to the value of NumInputs
 --@see NumInputs
 --@see containsLink
 function linkMutate(genome, forceBias)
 	local neuron1 = randomNeuron(genome.genes, false) -- can be an input node
 	local neuron2 = randomNeuron(genome.genes, true) -- cannot be an input node
-	 
+
 	local newLink = newGene()
 	if neuron1 <= NumInputs and neuron2 <= NumInputs then
 		--Both input nodes
@@ -472,13 +472,13 @@ function linkMutate(genome, forceBias)
 	if forceBias then
 		newLink.into = NumInputs
 	end
-	
+
 	if containsLink(genome.genes, newLink) then
 		return
 	end
 	newLink.innovation = newInnovation()
 	newLink.weight = math.random()*4-2
-	
+
 	table.insert(genome.genes, newLink)
 end
 
@@ -498,14 +498,14 @@ function nodeMutate(genome)
 		return
 	end
 	gene.enabled = false
-	
+
 	local gene1 = copyGene(gene)
 	gene1.out = genome.maxneuron
 	gene1.weight = 1.0
 	gene1.innovation = newInnovation()
 	gene1.enabled = true
 	table.insert(genome.genes, gene1)
-	
+
 	local gene2 = copyGene(gene)
 	gene2.into = genome.maxneuron
 	gene2.innovation = newInnovation()
@@ -523,11 +523,11 @@ function enableDisableMutate(genome, enable)
 			table.insert(candidates, gene)
 		end
 	end
-	
+
 	if #candidates == 0 then
 		return
 	end
-	
+
 	local gene = candidates[math.random(1,#candidates)]
 	gene.enabled = not gene.enabled
 end
@@ -550,7 +550,7 @@ function mutate(genome)
 	if math.random() < genome.mutationRates["connections"] then
 		pointMutate(genome)
 	end
-	
+
 	local p = genome.mutationRates["link"]
 	while p > 0 do
 		if math.random() < p then
@@ -566,7 +566,7 @@ function mutate(genome)
 		end
 		p = p - 1
 	end
-	
+
 	p = genome.mutationRates["node"]
 	while p > 0 do
 		if math.random() < p then
@@ -574,7 +574,7 @@ function mutate(genome)
 		end
 		p = p - 1
 	end
-	
+
 	p = genome.mutationRates["enable"]
 	while p > 0 do
 		if math.random() < p then
@@ -607,7 +607,7 @@ function disjoint(genes1, genes2)
 		local gene = genes2[i]
 		i2[gene.innovation] = true
 	end
-	
+
 	local disjointGenes = 0
 	for i = 1,#genes1 do
 		local gene = genes1[i]
@@ -615,16 +615,16 @@ function disjoint(genes1, genes2)
 			disjointGenes = disjointGenes+1
 		end
 	end
-	
+
 	for i = 1,#genes2 do
 		local gene = genes2[i]
 		if not i1[gene.innovation] then
 			disjointGenes = disjointGenes+1
 		end
 	end
-	
+
 	local n = math.max(#genes1, #genes2)
-	
+
 	return disjointGenes / n
 end
 
@@ -648,10 +648,10 @@ function weights(genes1, genes2)
 			coincident = coincident + 1
 		end
 	end
-	
+
 	return sum / coincident
 end
-	
+
 --- Computes a delta between two genomes. Returns true if the delta < DeltaThreshold.
 -- The delta function is "DeltaDisjoint * disjointValue + DeltaWeights * weightValue"
 --@param genome1 Genome
@@ -664,7 +664,7 @@ end
 --@see weights
 function sameSpecies(genome1, genome2)
 	local dd = DeltaDisjoint*disjoint(genome1.genes, genome2.genes)
-	local dw = DeltaWeights*weights(genome1.genes, genome2.genes) 
+	local dw = DeltaWeights*weights(genome1.genes, genome2.genes)
 	return dd + dw < DeltaThreshold
 end
 
@@ -681,23 +681,23 @@ function rankGlobally()
 	table.sort(global, function (a,b)
 		return (a.fitness < b.fitness)
 	end)
-	
+
 	for g=1,#global do
 		global[g].globalRank = g
 	end
 end
 
---- Computes the average global rank of a species (lower is better). 
+--- Computes the average global rank of a species (lower is better).
 -- Sets the species' 'averageFitness' property to this value.
 --@param species A species of Genomes.
 function calculateAverageFitness(species)
 	local total = 0
-	
+
 	for g=1,#species.genomes do
 		local genome = species.genomes[g]
 		total = total + genome.globalRank
 	end
-	
+
 	species.averageFitness = total / #species.genomes
 end
 
@@ -718,11 +718,11 @@ end
 function cullSpecies(cutToOne)
 	for s = 1,#pool.species do
 		local species = pool.species[s]
-		
+
 		table.sort(species.genomes, function (a,b)
 			return (a.fitness > b.fitness)
 		end)
-		
+
 		local remaining = math.ceil(#species.genomes/2)
 		if cutToOne then
 			remaining = 1
@@ -752,9 +752,9 @@ function breedChild(species)
 		g = species.genomes[math.random(1, #species.genomes)]
 		child = copyGenome(g)
 	end
-	
+
 	mutate(child)
-	
+
 	return child
 end
 
@@ -769,11 +769,11 @@ function removeStaleSpecies()
 
 	for s = 1,#pool.species do
 		local species = pool.species[s]
-		
+
 		table.sort(species.genomes, function (a,b)
 			return (a.fitness > b.fitness)
 		end)
-		
+
 		if species.genomes[1].fitness > species.topFitness then
 			species.topFitness = species.genomes[1].fitness
 			species.staleness = 0
@@ -817,7 +817,7 @@ function addToSpecies(child)
 			foundSpecies = true
 		end
 	end
-	
+
 	if not foundSpecies then
 		local childSpecies = newSpecies()
 		table.insert(childSpecies.genomes, child)
@@ -865,12 +865,12 @@ function newGeneration()
 		local child = children[c]
 		addToSpecies(child)
 	end
-	
+
 	pool.generation = pool.generation + 1
-	
+
 	writeFile("backup." .. pool.generation .. ".txt")
 end
-	
+
 --- Initializes the global pool.
 -- Creates a genome with basicGenome and adds it.
 -- Then calls initializeRun.
@@ -957,7 +957,7 @@ function calculateCurrentFitness()
                 -- Look for network fitness response
                 if string.find(s, "Network fitness") then
                     print("KAG responded with Network fitness string...")
-                    local function helper(match) fitnessString = match end 
+                    local function helper(match) fitnessString = match end
 
                     -- If the match is found then it is passed to helper
                     string.gsub(s, "Network fitness: (%d+%.%d+)", helper)
@@ -1011,7 +1011,7 @@ end
 function fitnessAlreadyMeasured()
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
-	
+
 	return genome.fitness ~= 0
 end
 
@@ -1049,7 +1049,7 @@ function writeFile(filename)
                 file:write(rate .. "\n")
             end
             file:write("done\n")
-            
+
             file:write(#genome.genes .. "\n")
             for l,gene in pairs(genome.genes) do
                 file:write(gene.into .. " ")
@@ -1112,18 +1112,18 @@ function loadFile(filename)
 				else
 					gene.enabled = true
 				end
-				
+
 			end
 		end
 	end
     file:close()
-	
+
 	while fitnessAlreadyMeasured() do
 		nextGenome()
 	end
 	initializeRun()
 end
- 
+
 --- Calls loadFile with a default file path argument.
 --@see loadFile
 function loadPool()
@@ -1147,7 +1147,7 @@ function playTop()
 			end
 		end
 	end
-	
+
 	pool.currentSpecies = maxs
 	pool.currentGenome = maxg
 	pool.maxFitness = maxfitness
@@ -1236,16 +1236,16 @@ while true do
     print("\nITERATING")
 	local species = pool.species[pool.currentSpecies]
 	local genome = species.genomes[pool.currentGenome]
-	
+
     --displayGenome(genome)
     local fitness = calculateCurrentFitness()
-    
+
     if fitness > pool.maxFitness then
         pool.maxFitness = fitness
         print("Max fitness improved to " .. fitness)
         writeFile("backup." .. pool.generation .. ".txt")
     end
-    
+
     print(getSummaryString())
     pool.currentSpecies = 1
     pool.currentGenome = 1
