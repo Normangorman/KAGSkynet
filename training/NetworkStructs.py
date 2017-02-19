@@ -1,6 +1,9 @@
 from bs4 import BeautifulSoup
 import math
 import copy
+import timeit
+import numpy as np
+import random
 
 NUM_KNIGHT_INPUTS = 15 # for each knight
 NUM_INPUTS = 30
@@ -306,11 +309,13 @@ def loadDataSet(filePath):
 
 def loadDataSetVectors(filePath):
     matches = loadDataSet(filePath)
-    vectors = []
+    vector_matches = []
     for match in matches:
+        m = []
         for (inputs, outputs) in match:
-            vectors.append([inputs.toVector(), outputs.toVector()])
-    return vectors
+            m.append((inputs.toVector(), outputs.toVector()))
+        vector_matches.append(m)
+    return vector_matches
 
 def fitness_func(estimate, actual):
     # Takes 2 output vectors and compares them, returning a number between 0 and 1
@@ -325,12 +330,14 @@ def fitness_func(estimate, actual):
 
     return 1 - sum
 
+def sign(x):
+    return (1,-1)[x<0]
+
 def fitness_func2(estimate, actual):
     # Takes 2 output vectors and compares them, returning a number between 0 and 1
     # 0 if completely different, 1 if identical
     n = len(estimate)
     sum = 0.0
-    sign = lambda x: (1, -1)[x < 0]
 
     for i in range(n):
         e, a = estimate[i], actual[i]
@@ -341,11 +348,35 @@ def fitness_func2(estimate, actual):
 
         sum += delta / n
 
-
     return 1 - sum
+
+def test_fitness_func2(data):
+    for (a1,a2) in data:
+        f = fitness_func2(a1, a2)
 
 if __name__ == "__main__":
     k = KnightInputs()
     k.test()
+
+    iterations = 1
+    np_arrays = []
+    reg_arrays = []
+    print("Generating data")
+    for i in range(iterations):
+        #np_rand = np.random.rand(2,8)
+        reg_rand = [random.random() for j in range(16)]
+        #np_arrays.append((np_rand[0], np_rand[1]))
+        reg_arrays.append((reg_rand[:8], reg_rand[8:]))
+
+
+    #np_test = lambda: test_fitness_func2(np_arrays)
+    reg_test = lambda: test_fitness_func2(reg_arrays)
+    #print("running np_test")
+    #print(timeit.timeit(np_test))
+    print("running reg_test")
+    #print(timeit.timeit(reg_test))
+    data = [([1,2,3,4,5,6,7,8], [1,2,3,4,5,6,7,8])]
+    print(timeit.timeit(lambda: fitness_func2(data[0][0], data[0][1])))
+
 
     #print(loadDataSet("TrainingData/DeynardeEluded17_02_2017/clean/nn_test_data.txt"))
