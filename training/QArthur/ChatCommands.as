@@ -25,9 +25,16 @@ bool onServerProcessChat(CRules@ this, const string& in text_in, string& out tex
 	{
 		blob.server_Hit(blob, blob.getPosition(), Vec2f(0, 0), 100.0f, 0);
 	}
-	else if (text_in == "!arthur" && player.isMod()) // TODO: whoaaa check seclevs
+	else if (text_in == "!arthur" && player.isMod())
 	{
 		CPlayer@ bot = AddBot("Arthur");
+		return true;
+	}
+	else if (text_in == "!bot" && player.isMod())
+	{
+		CPlayer@ bot = AddBot("Henrietta");
+		bot.server_setHeadNum(33);
+		bot.server_setSexNum(1);
 		return true;
 	}
 	else if (text_in == "!debug" && player.isMod())
