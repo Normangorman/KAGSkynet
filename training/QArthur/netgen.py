@@ -1,12 +1,14 @@
 """
 This script generates a neural network and serializes into the form that NeuralNetwork.as understands.
 """
+import random
 
-NUM_INPUTS = 3
+NUM_INPUTS = 4
 HIDDEN_LAYER_SIZE = 5
-NUM_HIDDEN_LAYERS = 2
-NUM_OUTPUTS = 4
-DEFAULT_WEIGHT = 1.0
+NUM_HIDDEN_LAYERS = 1
+NUM_OUTPUTS = 3
+WEIGHT_MEAN = 0.0
+WEIGHT_DEVIATION = 0.2
 
 def netgen():
     net = "<network>"
@@ -49,7 +51,8 @@ def netgen():
             add(h, o)
 
 
-    net += "#".join(["{0},{1},{2}".format(a,b,DEFAULT_WEIGHT) for (a,b) in synapses])
+    get_weight = lambda: random.uniform(WEIGHT_MEAN-WEIGHT_DEVIATION, WEIGHT_MEAN+WEIGHT_DEVIATION)
+    net += "#".join(["{0},{1},{2}".format(a,b,get_weight()) for (a,b) in synapses])
 
     net += "</network>"
     return net

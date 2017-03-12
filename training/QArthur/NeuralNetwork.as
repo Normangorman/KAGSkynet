@@ -25,8 +25,7 @@ shared class Neuron {
     void computeDelta(float errWrtOut) {
         // This is where the derivative of the current activation function lives
         // Make sure to change it if the activation function changes
-        // using sigmoid deriv
-        delta = errWrtOut * sigmoidDeriv(sumIncoming);
+        delta = errWrtOut * leakyReluDeriv(sumIncoming);
     }
 
     void debug() {
@@ -190,29 +189,55 @@ shared class NeuralNetwork {
         }
 
         n.sumIncoming = sum;
-        n.value = sigmoid(n.bias + n.response * sum);
+        n.value = leakyRelu(n.bias + n.response * sum);
         if (verbose) log("NeuralNetwork#forward", "Set value to " + n.value);
     }
 
-    float backPropagate(float[] inputVec, float[] idealVec) {
-        // Phase 0: forward pass
-        forward(inputVec);
+    float[] getErrorVec(float[] actualVec, float[] idealVec) {
+        // Returns actual - ideal
+        float[] errorVec;
 
+        for (int i=0; i < actualVec.length(); ++i) {
+            float err = actualVec[i] - idealVec[i];
+            errorVec.push_back(err);
+        }
+
+        return errorVec;
+    }
+
+    float getTotalError(float[] actualVec, float[] idealVec) {
+        float totalError = 0.0;
+
+        for (int i=0; i < actualVec.length(); ++i) {
+            float err = 0.5 * Maths::Pow(idealVec[i] - actualVec[i], 2);
+            totalError += err;
+        }
+
+        return totalError;
+    }
+
+    float train(float[] inputVec, float[] idealVec) {
+        float[] actualVec = forward(inputVec);
+        float[] errorVec = getErrorVec(actualVec, idealVec);
+        backprop(errorVec);
+        return getTotalError(actualVec, idealVec);
+    }
+
+    void backprop(float[] errorVec) {
         // PHASE 1: compute deltas 
-        _backPropResetHasDelta();
-        float totalError = _backPropComputeOutputDeltas(idealVec);
-        _backPropComputeHiddenDeltas();
+        _backpropResetHasDelta();
+        _backpropComputeOutputDeltas(errorVec);
+        _backpropComputeHiddenDeltas();
 
         // TODO: Maybe deltas for input neurons can be used somehow? Perhaps to update responses/biases.
 
         // PHASE 2: weight updates
-        _backPropWeightUpdates();
-        return totalError;
+        _backpropWeightUpdates();
     }
 
     // Sets hasDelta = false for every neuron
-    void _backPropResetHasDelta() {
-        if (verbose) log("_backPropResetHasDelta", "Called");
+    void _backpropResetHasDelta() {
+        if (verbose) log("_backpropResetHasDelta", "Called");
 
         for (int i=0; i < orderedNeurons.length(); ++i) {
             Neuron@ n = orderedNeurons[i];
@@ -221,30 +246,26 @@ shared class NeuralNetwork {
     }
 
     // Computes the deltas for all output neurons
-    float _backPropComputeOutputDeltas(float[] idealVec) {
-        if (verbose) log("_backPropComputeOutputDeltas", "Called");
-        float totalError = 0;
+    void _backpropComputeOutputDeltas(float[] errorVec) {
+        if (verbose) log("_backpropComputeOutputDeltas", "Called");
 
         for (int i=0; i < orderedNeurons.length(); ++i) {
             Neuron@ n = orderedNeurons[i];
 
             if (isOutputNeuron(n)) {
-                float err = 0.5 * Maths::Pow(idealVec[n.id] - n.value, 2);
-                totalError += err;
-                float errWrtOut = n.value - idealVec[n.id]; // derivative of error function
-                n.computeDelta(errWrtOut);
+                n.computeDelta(errorVec[n.id]);
                 n.hasDelta = true;
             }
         }
-
-        return totalError;
     }
         
     // Computes deltas for all hidden neurons
-    void _backPropComputeHiddenDeltas() {
-        if (verbose) log("_backPropComputeHiddenDeltas", "Called");
+    void _backpropComputeHiddenDeltas() {
+        if (verbose) log("_backpropComputeHiddenDeltas", "Called");
         int[] hiddenList; // the ids of hidden neurons which haven't yet been updated
+
         // Push all hidden onto the list
+        // TODO: Bake the order for backprop updates
         for (int i=0; i < orderedNeurons.length(); ++i) {
             Neuron@ n = orderedNeurons[i];
             if (isHiddenNeuron(n)) {
@@ -254,20 +275,21 @@ shared class NeuralNetwork {
 
         int iteration = 0;
         while (hiddenList.length() > 0) {
-            if (verbose) log("backPropagate", "Doing delta compute iteration " + iteration);
+            if (verbose) log("backpropagate", "Doing delta compute iteration " + iteration);
             // Iterate from the back so we can pop safely
             for (int i=hiddenList.length()-1; i >= 0; --i) {
                 int id = hiddenList[i];
-                bool computed = _backPropComputeHiddenDeltaForNeuron(getNeuron(id));
+                bool computed = _backpropComputeHiddenDeltaForNeuron(getNeuron(id));
                 if (computed) {
-                    if (verbose) log("_backPropComputeHiddenDeltas", "Computed for neuron " + id);
+                    if (verbose) log("_backpropComputeHiddenDeltas", "Computed for neuron " + id);
                     hiddenList.removeAt(i);
                 }
             }
 
             iteration++;
             if (iteration == 10) {
-                exception("_backPropComputeHiddenDeltas", "Oh dear! Too many iterations :(");
+                // Prevent infinite loop
+                exception("_backpropComputeHiddenDeltas", "Oh dear! Too many iterations :(");
             }
         }
     }
@@ -275,8 +297,8 @@ shared class NeuralNetwork {
     // Returns true/false whether we were ready to compute the delta for this neuron
     // To be able to compute a delta for a hidden neuron, we need to already have the deltas
     // for all of the neurons it is connected to.
-    bool _backPropComputeHiddenDeltaForNeuron(Neuron@ n) {
-        if (verbose) log("_backPropComputeHiddenDeltaForNeuron", "Called");
+    bool _backpropComputeHiddenDeltaForNeuron(Neuron@ n) {
+        if (verbose) log("_backpropComputeHiddenDeltaForNeuron", "Called");
         bool canComputeDelta = true;
         float sumOfDeltasTimesWeights = 0.0;
 
@@ -304,8 +326,8 @@ shared class NeuralNetwork {
     }
     
     // Updates the weights for all synapses
-    void _backPropWeightUpdates() {
-        if (verbose) log("_backPropWeightUpdates", "Called");
+    void _backpropWeightUpdates() {
+        if (verbose) log("_backpropWeightUpdates", "Called");
 
         // Iterate through every weight and update it
         for (int i=0; i < orderedNeurons.length(); ++i) {
@@ -894,12 +916,16 @@ shared float tanh(float x) {
     float em2x = Maths::Pow(CONST_E, -2*x);
     return (1-em2x) / (1+em2x);
 }
+*/
 
 shared float leakyRelu(float x) {
-    // This might not actually give any performance advantage if it's compiled into a jump
+    // This might be bad for performance if it's compiled into a jump
     return (x > 0) ? x : 0.01*x;
 }
-*/
+
+shared float leakyReluDeriv(float x) {
+    return (x > 0) ? 1 : 0.01;
+}
 
 // Returns true/false if the given string contains a substring 'sub' starting at index i
 shared bool stringCheck(string str, int i, string sub) {

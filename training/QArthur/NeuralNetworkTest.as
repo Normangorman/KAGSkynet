@@ -45,7 +45,7 @@ void testNetwork1() {
 
 
     // Test backprop
-    float totalError = net.backPropagate(inputVec, idealVec);
+    float totalError = net.train(inputVec, idealVec);
     /*
     for (int i=0; i < net.orderedNeurons.length(); i++) {
         Neuron@ n = net.orderedNeurons[i];
@@ -107,7 +107,7 @@ void testNetwork2() {
     }
 
     // Test backprop
-    float totalError = net.backPropagate(inputVec, idealVec);
+    float totalError = net.train(inputVec, idealVec);
     if (!almostEqual(totalError, 63.152376)) {
         log("runTests", "FAIL totalError " + totalError);
     }
@@ -202,11 +202,122 @@ void testNetwork2() {
     }
 }
 
+
+void testIrisNetwork() {
+    log("testIrisNetwork", "Called");
+    NeuralNetwork net();
+    net.loadFromString(IRIS_NETWORK_RAND_WEIGHTS);
+
+    int trainIterations = 1000;
+    for (int i=0; i < trainIterations; i++) {
+        float totalError = 0.0;
+        for (int k=0; k < IRIS_TRAIN_SET.length(); k++) {
+            //int randomIndex = XORRandom(IRIS_TRAIN_SET.length);
+            int randomIndex = k;
+            float[] randomDatum = IRIS_TRAIN_SET[randomIndex];
+            //log("testIrisNetwork", "randomIndex " + randomIndex);
+            if (randomDatum.length == 0) {
+                log("testIrisNetwork", "ERROR randomDatum length is 0");
+                continue;
+            }
+
+            float[] inputs;
+            float[] ideals;
+            for (int j=0; j < 4; j++) {
+                inputs.push_back(randomDatum[j]);
+            }
+
+            // Species is 1, 2, or 3 in the data set
+            // But the activation function is a sigmoid, so these values are squashed into the ranges 0.0->0.33, 0.33->0.66, 0.66->1
+            float species = randomDatum[4];
+            if (species == 1) {
+                ideals.push_back(1);
+                ideals.push_back(0);
+                ideals.push_back(0);
+            }
+            else if (species == 2) {
+                ideals.push_back(0);
+                ideals.push_back(1);
+                ideals.push_back(0);
+            }
+            else if (species == 3) {
+                ideals.push_back(0);
+                ideals.push_back(0);
+                ideals.push_back(1);
+            }
+
+            float output = net.forward(inputs)[0];
+            float error = net.train(inputs, ideals);
+            totalError += error;
+        }
+
+        log("testIrisNetwork", "Epoch " + i + " total error " + totalError);
+    }
+
+    log("testIrisNetwork", "Final weights:");
+    for (int i=0; i < net.orderedNeurons.length(); i++) {
+        Neuron@ n = net.orderedNeurons[i];
+        for (int j=0; j < n.incoming.length(); j++) {
+            Synapse@ s = n.incoming[j];
+            log("testIrisNetwork", s.fromNeuron + " == " + s.weight + " ==> " + s.toNeuron);
+        }
+    }
+
+    // Evaluate on test set
+    float testSetAccuracy = 0.0;
+    for (int i=0; i < IRIS_TEST_SET.length(); i++) {
+        float[] datum = IRIS_TEST_SET[i];
+        if (datum.length() == 0) {
+            log("testIrisNetwork", "ERROR test datum length is 0");
+            continue;
+        }
+
+        float[] inputs;
+        for (int j=0; j < 4; j++) {
+            inputs.push_back(datum[j]);
+        }
+        float actualSpecies = datum[4];
+
+        float[] result = net.forward(inputs);
+        int predictedSpecies = argmax(result) + 1;
+        log("testIrisNetwork", "index " + i + ", actual " + actualSpecies
+            + ", predicted " + predictedSpecies
+            + ", result " + result[0] + "," + result[1] + "," + result[2]);
+
+        if (predictedSpecies == actualSpecies) {
+            testSetAccuracy += 1 / float(IRIS_TEST_SET.length);
+        }
+    }
+
+    print("Test set accuracy " + testSetAccuracy);
+}
+
+float squashIrisSpecies(float species) {
+    return species/3.0 - 0.167;
+}
+
+float unsquashIrisSpecies(float squashed) {
+    if (squashed < 0.33) {
+        return 1;
+    }
+    else if (squashed < 0.66) {
+        return 2;
+    }
+    else {
+        return 3;
+    }
+}
+
 void runTests() {
     log("runTests", "RUNNING TESTS");
     testNetwork1();
     testNetwork2();
+    testIrisNetwork();
     log("runTests", "FINISHED");
+}
+
+void onInit(CRules@ this) {
+    runTests();
 }
 
 void onReload(CRules@ this) {
@@ -220,4 +331,18 @@ bool almostEqual(float x, float y, float epsilon=0.000001) {
 // Returns a high precision string (to 12 d.p.)
 string strFloat(float x) {
     return formatFloat(x, "", 0, 12);
+}
+
+float argmax(float[] xs) {
+    int maxIndex = 0;
+    float maxVal = -99999999999999;
+
+    for (int i=0; i < xs.length(); ++i) {
+        if (xs[i] > maxVal) {
+            maxIndex = i;
+            maxVal = xs[i];
+        }
+    }
+
+    return maxIndex;
 }
