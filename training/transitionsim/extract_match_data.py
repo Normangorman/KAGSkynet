@@ -3,8 +3,12 @@ import os
 import math
 from collections import namedtuple
 
-TRAIN_DIR = "../data/DeynardeEluded17_02_2017/clean/train"
-TEST_DIR = "../data/DeynardeEluded17_02_2017/clean/test"
+TRAIN_DIRS = ["../data/DeynardeEluded15_02_2017/clean/train",
+              "../data/DeynardeEluded17_02_2017/clean/train",
+              ]
+TEST_DIRS =  ["../data/DeynardeEluded15_02_2017/clean/test",
+              "../data/DeynardeEluded17_02_2017/clean/test",
+              ]
 TRAIN_OUTPUT_F = "nn_train_data.txt"
 TEST_OUTPUT_F = "nn_test_data.txt"
 
@@ -44,14 +48,15 @@ class GameState:
         return ','.join([str(item) for item in self.dump_array()])
 
 
-def create_data_file(match_directory, output_f):
+def create_data_file(data_dirs, output_f):
     matches = []
-    for filePath in os.listdir(match_directory):
-        with open(match_directory + "/" + filePath, 'r') as f:
+    for directory in data_dirs:
+        print(directory)
+        for filePath in os.listdir(directory):
             print(filePath)
-            soup = BeautifulSoup(f.read())
-            matches.append(extract_game_states(soup))
-            break
+            with open(directory + "/" + filePath, 'r') as f:
+                soup = BeautifulSoup(f.read())
+                matches.append(extract_game_states(soup))
 
     with open(output_f, 'w') as f:
         for match in matches:
@@ -59,7 +64,6 @@ def create_data_file(match_directory, output_f):
                 state1 = match[i]
                 state2 = match[i+1]
                 f.write(state1.dump_string() + '|' + state2.dump_string() + '\n')
-                break
             f.write("#\n") # the # symbol separates matches
 
 
@@ -121,5 +125,5 @@ def extract_game_states(soup):
     return states
 
 
-create_data_file(TRAIN_DIR, TRAIN_OUTPUT_F)
-create_data_file(TEST_DIR, TEST_OUTPUT_F)
+create_data_file(TRAIN_DIRS, TRAIN_OUTPUT_F)
+create_data_file(TEST_DIRS, TEST_OUTPUT_F)
